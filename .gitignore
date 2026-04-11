@@ -1,0 +1,48 @@
+# 此文件由LLM生成
+
+# 这些是Unity运行时自动生成的文件夹
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+
+# 忽略过大的崩溃报告和内存快照
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# 忽略IDE（如VS Code/Rider）生成的本地配置文件
+.vs/
+.idea/
+.consulo/
+ExportedObj/
+
+# 忽略解决方案和项目文件
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.opendb
+*.VC.db
+
+# 忽略打包生成的文件
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# 忽略特定插件的本地缓存
+/[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
+/[Aa]ssets/Plugins/Editor/JetBrains*
+
+# 忽略临时生成的Android资源
+/[Aa]ssets/[Ss]treamingAssets/aa.meta
+/[Aa]ssets/[Ss]treamingAssets/aa/*
