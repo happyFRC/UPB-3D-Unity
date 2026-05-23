@@ -15,6 +15,7 @@
 
 # 忽略IDE（如VS Code/Rider）生成的本地配置文件
 .vs/
+.vscode/
 .idea/
 .consulo/
 ExportedObj/
