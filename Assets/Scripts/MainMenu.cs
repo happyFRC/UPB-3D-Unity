@@ -1,8 +1,9 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class MainMenu : MonoBehaviour {
-    public void ButtonOnClick_Sim() {
-        // TODO
+    public void ButtonOnClick_StellarEvolution() {
+        SceneManager.LoadScene("StellarEvolutionPreparationScene");
     }
 
     public void ButtonOnClick_Quit() {
