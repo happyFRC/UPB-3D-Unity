@@ -11,4 +11,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/StellarEvolutionPreparationScene.unity
     guid: 73c2336ec0e585b4e89d7a0deda2e1f8
+  - enabled: 1
+    path: Assets/Scenes/StellarEvolutionScene.unity
+    guid: 7db3bd51e886d9446b1ea8e58140f037
   m_configObjects: {}

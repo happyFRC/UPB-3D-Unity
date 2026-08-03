@@ -10,9 +10,9 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
     void Start() {
         BindInputField(IF_Mass, "IF_Mass", 0.077f, 30f);
         BindInputField(IF_Metal, "IF_Metal", 0.001f, 0.03f);
-        BindInputField(IF_End, "IF_End", 0f, 12000f);
-        BindInputField(IF_Step, "IF_Step", 0f, 12000f);
-        BindInputField(IF_StepTime, "IF_StepTime", 1e-5f, 1000f);
+        BindInputField(IF_End, "IF_End", 0.001f, 12000f);
+        BindInputField(IF_Step, "IF_Step", 0.001f, 12000f);
+        BindInputField(IF_StepTime, "IF_StepTime", 0.001f, 1000f);
     }
 
     void BindInputField(TMP_InputField input, string tag, float min, float max) {
@@ -40,8 +40,14 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
             double MSLifespan = StellarEvolutionEngine.GetMainSequenceLifespan(mass, metallicity);
             double RGLifespan = StellarEvolutionEngine.GetRedGiantLifespan(mass, metallicity);
             double lifespan = MSLifespan + RGLifespan;
-            BindInputField(IF_End, "IF_End", 0, (float) lifespan);
-            BindInputField(IF_Step, "IF_Step", 0, (float) lifespan);
+            BindInputField(IF_End, "IF_End", 0, (float)lifespan);
+            BindInputField(IF_Step, "IF_Step", 0, (float)lifespan);
+            if (double.Parse(IF_End.text) > lifespan) {
+                IF_End.text = lifespan.ToString();
+            }
+            if (double.Parse(IF_Step.text) > lifespan) {
+                IF_Step.text = (lifespan / 500.0).ToString();
+            }
         }
     }
 
@@ -71,6 +77,12 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
     }
 
     public void ButtonOnClick_Start() {
-
+        StellarEvolutionEngine.name = IF_Name.text == "" ? "恒星" : IF_Name.text;
+        StellarEvolutionEngine.SE_Mass = double.Parse(IF_Mass.text);
+        StellarEvolutionEngine.SE_Metal = double.Parse(IF_Metal.text);
+        StellarEvolutionEngine.SE_End = double.Parse(IF_End.text);
+        StellarEvolutionEngine.SE_Step = double.Parse(IF_Step.text);
+        StellarEvolutionEngine.SE_StepTime = double.Parse(IF_StepTime.text);
+        SceneManager.LoadScene("StellarEvolutionScene");
     }
 }
