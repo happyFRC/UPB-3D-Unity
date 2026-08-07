@@ -39,7 +39,7 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
             double metallicity = double.Parse(IF_Metal.text);
             double MSLifespan = StellarEvolutionEngine.GetMainSequenceLifespan(mass, metallicity);
             double RGLifespan = StellarEvolutionEngine.GetRedGiantLifespan(mass, metallicity);
-            double lifespan = MSLifespan + RGLifespan;
+            double lifespan = MSLifespan + (mass >= 1 ? RGLifespan : 0);
             BindInputField(IF_End, "IF_End", 0, (float)lifespan);
             BindInputField(IF_Step, "IF_Step", 0, (float)lifespan);
             if (double.Parse(IF_End.text) > lifespan) {
@@ -70,7 +70,7 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
         double metallicity = double.Parse(IF_Metal.text);
         double MSLifespan = StellarEvolutionEngine.GetMainSequenceLifespan(mass, metallicity);
         double RGLifespan = StellarEvolutionEngine.GetRedGiantLifespan(mass, metallicity);
-        double lifespan = MSLifespan + RGLifespan;
+        double lifespan = MSLifespan + (mass >= 1 ? RGLifespan : 0);
         IF_End.text = lifespan.ToString();
         IF_Step.text = (lifespan * 0.002).ToString();
         FloatingText.Show("已演化到终点");
@@ -84,5 +84,6 @@ public class StellarEvolutionPreparationScene : MonoBehaviour {
         StellarEvolutionEngine.SE_Step = double.Parse(IF_Step.text);
         StellarEvolutionEngine.SE_StepTime = double.Parse(IF_StepTime.text);
         SceneManager.LoadScene("StellarEvolutionScene");
+        FloatingText.Show("演化开始");
     }
 }

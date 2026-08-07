@@ -4,30 +4,41 @@ public class UPB3DCamera : MonoBehaviour {
     public Camera cam;
     public Transform target;
 
-    public float zoomSpeed = 10f;
-    public float minZoom = 20f;
-    public float maxZoom = 100f;
+    public float zoomSpeed = 0.5f;
+    public float minZoom = 0.002f;
+    public float maxZoom = 100000f;
 
     public float rotateSpeed = 2f;
     private Vector3 _lastMousePos;
     private float _angleX = 0f;
     private float _angleY = 30f;
     private float _distance = 30f;
+    private float _logDistance;
 
     void Start() {
         if (target == null) {
             GameObject go = GameObject.FindGameObjectWithTag("Player");
             if (go != null) target = go.transform;
         }
+        _logDistance = Mathf.Log(_distance);
         UpdateCameraPosition();
     }
 
     void Update() {
+        minZoom = target.transform.localScale.x + 2;
+        _distance = Mathf.Clamp(_distance, minZoom, maxZoom);
         float scroll = Input.GetAxis("Mouse ScrollWheel");
-        if (scroll != 0) {
-            _distance -= scroll * zoomSpeed;
-            _distance = Mathf.Clamp(_distance, minZoom, maxZoom);
-            UpdateCameraPosition();
+        if (Mathf.Abs(scroll) > 0.001f) {
+            _logDistance -= scroll * zoomSpeed;
+            float newDistance = Mathf.Exp(_logDistance);
+            if (newDistance < minZoom) {
+                newDistance = minZoom;
+                _logDistance = Mathf.Log(minZoom);
+            } else if (newDistance > maxZoom) {
+                newDistance = maxZoom;
+                _logDistance = Mathf.Log(maxZoom);
+            }
+            _distance = newDistance;
         }
 
         if (Input.GetMouseButtonDown(0)) {
@@ -37,9 +48,9 @@ public class UPB3DCamera : MonoBehaviour {
             _angleX += delta.x * rotateSpeed * 0.1f;
             _angleY -= delta.y * rotateSpeed * 0.1f;
             _angleY = Mathf.Clamp(_angleY, 5f, 85f);
-            UpdateCameraPosition();
             _lastMousePos = Input.mousePosition;
         }
+        UpdateCameraPosition();
     }
 
     void UpdateCameraPosition() {

@@ -2,7 +2,6 @@ using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
 using System.Collections.Generic;
-using Unity.Mathematics;
 using System;
 
 using Object = UnityEngine.Object;
@@ -19,7 +18,7 @@ public static class FloatingText {
         GameObject go = new("FloatingText");
         Canvas canvas = Object.FindObjectOfType<Canvas>();
         if (canvas == null) {
-            GameObject canvasGO = new GameObject("Canvas");
+            GameObject canvasGO = new("Canvas");
             canvas = canvasGO.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             canvasGO.AddComponent<CanvasScaler>();
@@ -71,6 +70,39 @@ public static class Utils {
 
         string result = mantissaStr + " x 10<sup>" + exponent + "</sup>";
         return result;
+    }
+
+    public static double MapLinear(double a, double b, double x, double y, double t) {
+        double minInput = Math.Min(a, b);
+        double maxInput = Math.Max(a, b);
+        t = Math.Clamp(t, minInput, maxInput);
+        return x + (y - x) * (t - a) / (b - a);
+    }
+
+    public static double MapLog(double a, double b, double x, double y, double t) {
+        double minInput = Math.Min(a, b);
+        double maxInput = Math.Max(a, b);
+        t = Math.Clamp(t, minInput, maxInput);
+        double logA = Math.Log(a);
+        double logB = Math.Log(b);
+        double logT = Math.Log(t);
+        return x + (y - x) * (logT - logA) / (logB - logA);
+    }
+
+    private static readonly double _emissionConstant1 = 0.851454969179;
+    private static readonly double _emissionConstant2 = 0.138226098404; 
+
+    public static float GetStarEmissionStrength(double temp) {
+        float res;
+        if (temp <= _emissionConstant2) {
+            return 0;
+        } else if (temp <= 4) {
+            res = 3 * Mathf.Pow((float)(temp - _emissionConstant2), 1.0f / 3.0f);
+        } else {
+            res = (float)(_emissionConstant1 + Mathf.Sqrt(10 * Mathf.Log((float)temp) + 1));
+        }
+
+        return res;
     }
 }
 
