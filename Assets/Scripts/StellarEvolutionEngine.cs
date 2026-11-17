@@ -1,13 +1,9 @@
 using Unity.Mathematics;
+using UPB.SSE;
 
 public static class StellarEvolutionEngine {
     public static readonly double
         // ~~~Constants~~~ //
-        // Radius: km
-        // Luminosity: W
-        // Mass: kg
-        // Temperature: K
-        // Speed: m/s
         rSun = 695700,
         rEarth = 6371,
         lSun = 3.828e26,
@@ -17,12 +13,16 @@ public static class StellarEvolutionEngine {
         tSunSurf = 5773.15,
         c0 = 299792458,
         c02 = math.pow(c0, 2),
-        MYR = 1e6 * 365.24 * 86400
-        ;
+        MYR = 1e6 * 365.24 * 86400,
+
+        MassMin = 0.077,
+        MassMax = 100.0,
+        DefaultStepDivisor = 1000.0;
 
     public static string name;
     public static double
         SE_Mass, SE_MassCore, SE_Metal,
+        SE_Start, // 【新增】起点
         SE_End, SE_Step, SE_StepTime, SE_Tau,
         SE_Radius, SE_Year, SE_TemperatureSurf, SE_TemperatureCore, SE_Luminosity,
         SE_X_H, SE_X_He, SE_AvgMolecularWeight,
@@ -36,79 +36,119 @@ public static class StellarEvolutionEngine {
     public static Spectrum
         SE_Spectrum;
 
-    public static double GetTau(double mass) {
-        if (0.077 <= mass && mass < 0.8) {
-            return 10000 * math.pow(mass, -2.7) * (1.2 - 0.6 * mass);
-        } else if (0.8 <= mass && mass < 1) {
-            return 10000 * math.pow(mass, -3) * (2 - mass);
-        } else if (mass == 1) {
-            return 10000;
-        } else if (1 < mass && mass <= 2) {
-            return 25000.0 / 3.0 * math.pow(mass, -3);
-        } else if (2 < mass && mass <= 10.0 / 3.0) {
-            return 12500.0 / 3.0 * math.pow(mass, -2);
-        } else if (10.0 / 3.0 < mass && mass <= 10) {
-            return 125000.0 / 9.0 * math.pow(mass, -3);
-        } else if (10 < mass && mass <= 12) {
-            return 50.0 / 3.0 * math.pow(mass / 10.0, -1.542);
-        } else if (12 < mass && mass <= 16) {
-            return 50.0 / 3.0 * math.pow(mass / 10.0, -1.542) * (0.0375 * mass + 0.55);
-        } else if (16 < mass && mass <= 30) {
-            return 3714.0 / 575.0 * (27.0 / 280.0 * mass - 11.0 / 28.0) * math.pow(mass / 16.0, -1.93);
+    public static Track SSE_Track;
+    public static int SE_Phase;
+    public static double SE_MassCurrent;
+    public static string SE_PhaseName;
+
+    private static int _sseIndex;
+    private static double _lifeMass = -1, _lifeZ = -1, _lifeValue, _lifeStep;
+
+    public static int SE_StepCount => SSE_Track == null ? 0 : SSE_Track.points.Count;
+
+    public static bool HasNextStep() {
+        return SSE_Track != null && _sseIndex + 1 < SSE_Track.points.Count;
+    }
+
+    public static void InitSSE() {
+        SE_Mass = math.clamp(SE_Mass, MassMin, MassMax);
+        SE_Metal = math.clamp(SE_Metal, 1e-4, 0.03);
+
+        double end = SE_End;
+        double start = SE_Start;
+
+        var track = new Track();
+
+        // 始终从 0 开始算到残骸（保证 SSE 参数推导正确）
+        int rc = SseEngine.engine_evolve(SE_Mass, SE_Metal, 0.0,
+                                         SE_Step > 0 ? SE_Step : 0.0,
+                                         1, 1, track);
+        if (rc != 0 || track.points.Count == 0) {
+            SSE_Track = null;
+            return;
         }
-        return 0.0;
-    }
 
-    public static double GetMainSequenceLifespan(double mass, double metallicity) {
-        return GetTau(mass) * math.pow(metallicity / 0.02, 0.19953);
-    }
+        // 1. 裁剪终点
+        double lastTime = track.points[track.points.Count - 1].time;
+        if (end > 0 && end < lastTime * 0.99) {
+            int keep = track.points.Count;
+            while (keep > 1 && track.points[keep - 1].time > end) keep--;
+            track.points.RemoveRange(keep, track.points.Count - keep);
+        }
 
-    public static double GetRedGiantLifespan(double mass, double metallicity) {
-        // TODO
-        return 0.2 * GetMainSequenceLifespan(mass, metallicity);
+        // 2. 裁剪起点：把 time < SE_Start 的点全删掉
+        if (start > 0) {
+            int removeCount = 0;
+            while (removeCount < track.points.Count && track.points[removeCount].time < start) {
+                removeCount++;
+            }
+            // 保留至少一个点
+            if (removeCount < track.points.Count) {
+                track.points.RemoveRange(0, removeCount);
+            }
+        }
+
+        SSE_Track = track;
+        _sseIndex = 0;
+        SE_Tau = track.t_ms;
+        ApplySSEPoint(0);
+        SE_End = track.points[track.points.Count - 1].time;
     }
 
     public static void EvolveStep() {
-        if (SE_Year <= 1.15 * SE_Tau) {
-            double deltaM = 140 * (SE_Luminosity * lSun) * (SE_Step * MYR) / c02;
-            SE_X_H -= deltaM / (SE_MassCore * mSun);
-            SE_X_He = 1 - SE_X_H;
-            double mu = 1 / (2 * SE_X_H + 0.75 * SE_X_He);
-            double Tc = SE_TemperatureCore;
-            SE_TemperatureCore *= 1 + (1.5 - 0.5 * (SE_Year / SE_Tau))
-                               * SE_K * (mu - SE_AvgMolecularWeight) / SE_AvgMolecularWeight;
-            SE_AvgMolecularWeight = mu;
-            double v1 = SE_TemperatureCore / Tc;
-            double v15 = math.pow(v1, 5);
-            double s1 = SE_PP * v15;
-            double s2 = SE_CNO * math.pow(v15, 3);
-            double l0 = SE_Luminosity;
-            SE_Luminosity = s1 + s2;
-            SE_PP = s1; SE_CNO = s2;
-            if (SE_Mass >= 0.8) {
-                double alpha = 0.24 * (1 + math.log10(SE_Mass))
-                               + 0.0007 * SE_Mass * SE_Year / 20;
-                SE_Radius *= math.pow(SE_Luminosity / l0, alpha);
-            } else {
-                double log20m = math.log(SE_Mass) / math.log(20);
-                SE_Radius *= math.pow(SE_Luminosity / l0, 0.24 * (1 + log20m));
-            }
-            SE_TemperatureSurf = tSunSurf * math.pow(SE_Luminosity / (SE_Radius * SE_Radius), 0.25);
-        } else if (1.15 * SE_Tau < SE_Year && SE_Year <= SE_End) {
-            if (SETAMS_Luminosity == 0 || SETAMS_Radius == 0) {
-                SETAMS_Luminosity = SE_Luminosity;
-                SETAMS_Radius = SE_Radius;
-            }
+        if (!HasNextStep()) return;
+        ApplySSEPoint(++_sseIndex);
+    }
 
-            double alpha = (SE_Year - 1.15 * SE_Tau) / (0.05 * SE_Tau);
-            SE_Luminosity = SETAMS_Luminosity *
-                            math.pow(SE_LuminosityCrit / SETAMS_Luminosity, alpha);
-            SE_Radius = SETAMS_Radius *
-                        math.pow(SE_RadiusCrit / SETAMS_Radius, alpha);
-            SE_TemperatureSurf = tSunSurf * math.pow(SE_Luminosity / (SE_Radius * SE_Radius), 0.25);
+    private static void ApplySSEPoint(int i) {
+        TrackPoint p = SSE_Track.points[i];
+        SE_Year = p.time;
+        SE_Luminosity = math.max(p.luminosity, 1e-8);
+        SE_Radius = math.max(p.radius, 1e-6);
+        SE_TemperatureSurf = p.temperature > 1.0 ? p.temperature : 1.0;
+        SE_MassCurrent = p.mass;
+        SE_MassCore = p.core_mass;
+        SE_Phase = p.phase;
+        SE_PhaseName = SseEngine.phase_name_cn(p.phase);
+        SE_Spectrum = Spectrum.GetSpectrum(SE_Radius, p.mass, SE_TemperatureSurf);
+    }
+
+    public static double GetMainSequenceLifespan(double mass, double metallicity) {
+        var sp = new Sequence();
+        if (SseTimescales.sequence_init(sp, math.clamp(mass, MassMin, MassMax),
+                                        math.clamp(metallicity, 1e-4, 0.03)) != 0) {
+            return 0.0;
         }
-        SE_Spectrum = Spectrum.GetSpectrum(SE_Radius, SE_Mass, SE_TemperatureSurf);
-        SE_Year += SE_Step;
+        return sp.tm;
+    }
+
+    public static double GetRedGiantLifespan(double mass, double metallicity) {
+        return 0.2 * GetMainSequenceLifespan(mass, metallicity);
+    }
+
+    public static double GetLifespan(double mass, double metallicity) {
+        mass = math.clamp(mass, MassMin, MassMax);
+        metallicity = math.clamp(metallicity, 1e-4, 0.03);
+        if (mass == _lifeMass && metallicity == _lifeZ) return _lifeValue;
+
+        var track = new Track();
+        double life = 0.0;
+        if (SseEngine.engine_evolve(mass, metallicity, 0.0, 0.0, 0, 1, track) == 0
+            && track.last != null) {
+            life = track.last.time;
+        }
+        _lifeMass = mass;
+        _lifeZ = metallicity;
+        _lifeValue = life;
+        _lifeStep = track.t_ms > 0 ? track.t_ms / DefaultStepDivisor : 0.0;
+        return life;
+    }
+
+    public static double GetDefaultStep(double mass, double metallicity) {
+        mass = math.clamp(mass, MassMin, MassMax);
+        metallicity = math.clamp(metallicity, 1e-4, 0.03);
+        if (mass == _lifeMass && metallicity == _lifeZ && _lifeStep > 0) return _lifeStep;
+        return GetMainSequenceLifespan(mass, metallicity) / DefaultStepDivisor;
     }
 }
 
@@ -143,6 +183,12 @@ public class Spectrum {
         this.luminosity = luminosity;
     }
 
+    // 沙盘每帧要为 288 个表面斑块取色，原来每次都线性扫表 + 3 次 Substring/Convert，
+    // 这里按 100K 一档缓存结果（表本身就是 100K 一档，取值完全相同）。
+    private static readonly (float r, float g, float b)[] ColorCache =
+        new (float r, float g, float b)[512];
+    private static readonly bool[] ColorCacheValid = new bool[512];
+
     public static (float r, float g, float b) GetBlackbodyColor(double temperature) {
         if (temperature >= 50000) {
             return (0.529f, 0.745f, 1.0f);
@@ -157,6 +203,21 @@ public class Spectrum {
         }
 
         int temp = (int)math.round(temperature / 100.0) * 100;
+        int cacheIndex = temp / 100;
+        if (cacheIndex >= 0 && cacheIndex < ColorCache.Length &&
+            ColorCacheValid[cacheIndex]) {
+            return ColorCache[cacheIndex];
+        }
+
+        (float r, float g, float b) color = LookupBlackbodyColor(temp);
+        if (cacheIndex >= 0 && cacheIndex < ColorCache.Length) {
+            ColorCache[cacheIndex] = color;
+            ColorCacheValid[cacheIndex] = true;
+        }
+        return color;
+    }
+
+    private static (float r, float g, float b) LookupBlackbodyColor(int temp) {
         var entries = ColorDatabase.Entries;
 
         for (int i = 0; i < entries.Count - 1; i++) {
@@ -272,7 +333,7 @@ public static class SEEHelper {
             return (34.452 * math.pow(M, 2.542) + 6.73) * A(Z);
         } else if (16 < M && M <= 20) {
             return 11.2201845 * math.pow(M, 2.93) * A(Z);
-        } else if (20 < M && M <= 30) {
+        } else if (20 < M && M <= 100) {
             return 14.62 * math.pow(M, 2.715) * (0.314 + A(Z));
         } else {
             return 0;
@@ -282,7 +343,7 @@ public static class SEEHelper {
     public static double GetRadius0(double M, double Z) {
         if (0.077 <= M && M <= 12) {
             return 0.9 * math.pow(M, 0.9) * math.pow(Z / 0.02, -0.025);
-        } else if (12 < M && M <= 30) {
+        } else if (12 < M && M <= 100) {
             return 8.424 * math.sqrt(M / 12) * math.pow(Z / 0.02, -0.025);
         } else {
             return 0;
@@ -300,8 +361,10 @@ public static class SEEHelper {
             return math.pow(M / 10, 0.785) * 2.269 * B(Z) * C(Z);
         } else if (M > 20 && M <= 25) {
             return math.pow(M / 10, 1) * 4.09 * math.pow(Z / 0.02, 0.1) * C(Z);
-        } else if (M > 25 && M <= 30) {
-            return math.pow(M / 10, 1.3) * 3.478 * math.pow(Z / 0.02, 0.1) * C(Z);
+        } else if (M > 25 && M <= 100) {
+            // 上限：核心质量不超过总质量的 55%
+            double core = math.pow(M / 10, 1.3) * 3.478 * math.pow(Z / 0.02, 0.1) * C(Z);
+            return math.min(core, 0.55 * M);
         } else {
             return 0;
         }
@@ -327,7 +390,7 @@ public static class SEEHelper {
             return 0.02 * math.pow(2, -(M - 10) / 6) * p;
         } else if (M > 18 && M <= 20) {
             return 0.004 * p;
-        } else if (M > 20 && M <= 30) {
+        } else if (M > 20 && M <= 100) {
             return 0.024 * p;
         } else {
             return 0;

@@ -1,0 +1,32 @@
+{
+    "name": "水瓶座一系",
+    "planets": [
+        {
+            "name": "Planet 01",
+            "semiMajorAxisAu": 3.01,
+            "semiMajorAxisKm": 450289590.8069999,
+            "eccentricity": 0.024,
+            "colorR": 0.7843137383460999,
+            "colorG": 1.0,
+            "colorB": 0.7843137383460999
+        },
+        {
+            "name": "Planet 02",
+            "semiMajorAxisAu": 5.07,
+            "semiMajorAxisKm": 758461204.449,
+            "eccentricity": 0.016,
+            "colorR": 0.19607843458652497,
+            "colorG": 0.19607843458652497,
+            "colorB": 0.3921568691730499
+        },
+        {
+            "name": "Planet 03",
+            "semiMajorAxisAu": 81.8,
+            "semiMajorAxisKm": 12237105823.259999,
+            "eccentricity": 0.534,
+            "colorR": 1.0,
+            "colorG": 0.501960813999176,
+            "colorB": 0.0
+        }
+    ]
+}
