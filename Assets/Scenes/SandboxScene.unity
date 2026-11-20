@@ -50571,7 +50571,7 @@ MonoBehaviour:
   fadeOutMultiplier: 50
   gridColor: {r: 0.2, g: 0.5, b: 1, a: 0.29803923}
   majorGridColor: {r: 0.5, g: 0.8, b: 1, a: 0.9}
-  gridShader: {fileID: 0}
+  gridShader: {fileID: 4800000, guid: 63ebb5986d584b9b88e2375a1b2d7f91, type: 3}
 --- !u!23 &1199508758
 MeshRenderer:
   m_ObjectHideFlags: 0

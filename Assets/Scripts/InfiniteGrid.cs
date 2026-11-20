@@ -34,12 +34,15 @@ public class InfiniteGrid : MonoBehaviour {
     public Color majorGridColor = new(0.5f, 0.8f, 1f, 0.9f);
 
     [Header("Shader")]
-    [Tooltip("留空则自动使用内置的顶点色 Unlit Shader")]
+    [Tooltip("可指定抗锯齿网格 Shader；留空则使用内置的顶点色 Unlit Shader")]
     public Shader gridShader;
 
+    private static readonly int GridLineColor = Shader.PropertyToID("_GridLineColor");
+    private static readonly int GridAxisColor = Shader.PropertyToID("_GridAxisColor");
     private Camera _mainCamera;
     private LayerData[] _layers;
     private bool _isVisible;
+    private bool _useAntialiasedGrid;
 
     private class LayerData {
         public GameObject go;
@@ -56,6 +59,8 @@ public class InfiniteGrid : MonoBehaviour {
         if (gridShader == null) {
             gridShader = Shader.Find("Sprites/Default");
         }
+        _useAntialiasedGrid = gridShader != null &&
+            gridShader.FindPropertyIndex("_GridLineColor") >= 0 && gridShader.FindPropertyIndex("_GridAxisColor") >= 0;
 
         _layers = new LayerData[layerCount];
         for (int i = 0; i < layerCount; i++) {
@@ -82,13 +87,16 @@ public class InfiniteGrid : MonoBehaviour {
 
         Material mat = new Material(gridShader);
         mat.color = Color.white;
-        mr.material = mat;
+        if (_useAntialiasedGrid) {
+            mat.SetVector(GridLineColor, gridColor);
+            mat.SetVector(GridAxisColor, majorGridColor);
+        }
+        mr.sharedMaterial = mat;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         mr.receiveShadows = false;
 
-        // 构建一个步长为 1 的网格
-        Mesh mesh = BuildGridMesh(1.0, gridExtent);
-        mf.mesh = mesh;
+        Mesh mesh = _useAntialiasedGrid ? BuildGridPlane(gridExtent) : BuildGridMesh(1.0, gridExtent);
+        mf.sharedMesh = mesh;
 
         return new LayerData {
             go = go,
@@ -96,6 +104,20 @@ public class InfiniteGrid : MonoBehaviour {
             renderer = mr,
             material = mat,
             relativeMultiplier = System.Math.Pow(layerMultiplier, index)
+        };
+    }
+
+    static Mesh BuildGridPlane(int extent) {
+        float e = Mathf.Max(1, extent);
+        return new Mesh {
+            name = "GridPlane_Unit",
+            vertices = new[] {
+                new Vector3(-e, 0, -e), new Vector3(-e, 0, e),
+                new Vector3(e, 0, e), new Vector3(e, 0, -e)
+            },
+            // UV 以格子为单位，生成的线条和原有 Mesh 网格对齐。
+            uv = new[] { new Vector2(-e, -e), new Vector2(-e, e), new Vector2(e, e), new Vector2(e, -e) },
+            triangles = new[] { 0, 1, 2, 0, 2, 3 }
         };
     }
 
@@ -204,6 +226,7 @@ public class InfiniteGrid : MonoBehaviour {
             Color c = gridColor;
             c.a *= alpha;
             layer.material.color = c;
+            if (_useAntialiasedGrid) layer.renderer.enabled = alpha > 0f;
         }
     }
 
