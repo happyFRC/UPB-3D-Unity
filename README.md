@@ -92,6 +92,11 @@ docs/screenshots/ 本文配图
 用 Unity 2022.3.62f3c1 打开本工程，载入 `Assets/Scenes/MainMenu.unity`，
 在 Build Settings 里选 Windows 平台即可构建。
 
+## 更新记录
+
+- **2026-11-20** · 修复电脑端 UI 适配：沙盒侧边参数面板改为按画布宽度占比取宽（560–900 px 夹取）、
+  场景介绍栏贴右、底部时间面板宽度自适应；窄窗口和 16:9 以外比例下不再挤压或溢出。
+
 ## 许可证
 
 MIT，详见 [LICENSE](LICENSE)。© 2026 happyFRC
