@@ -48,3 +48,6 @@ ExportedObj/
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 /[Aa]ssets/Real Stars Skybox
+
+# UPB
+/UPB-data/*

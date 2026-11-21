@@ -7,11 +7,11 @@ using UnityEngine.UI;
 using UnityEngine.Video;
 
 public class Settings : MonoBehaviour {
-    [Header("ÒôÁ¿")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     public Slider musicVolumeSlider;
     public TextMeshProUGUI musicValueText;
 
-    [Header("ÒôÀÖÇÐ»»")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½Ð»ï¿½")]
     public Button buttonChangeBGM;
     public GameObject musicListPanel;
     public Button buttonSubstitute;
@@ -21,30 +21,30 @@ public class Settings : MonoBehaviour {
     public TextMeshProUGUI textFreeze;
     public TextMeshProUGUI textInfinity;
 
-    [Header("°ïÖú")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     public Button buttonHelp;
     public GameObject helpPanel;
     public Image helpImage;
 
-    [Header("ºãÐÇÑÝ»¯¼ÇÂ¼")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½Ý»ï¿½ï¿½ï¿½Â¼")]
     public Button buttonOpenRecords;
 
-    [Header("É¾³ýÈ«²¿¼ÇÂ¼")]
+    [Header("É¾ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½Â¼")]
     public Button buttonDeleteRecords;
 
-    [Header("ÎÒµÄÊý¾Ý")]
+    [Header("ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½")]
     public Button buttonMyData;
 
-    [Header("ÖÆ×÷ÈËÔ±")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô±")]
     public Button buttonCredits;
     public GameObject creditsPanel;
     public RawImage creditsRawImage;
     public VideoPlayer creditsVideoPlayer;
 
-    [Header("´´½¨×ÀÃæ¿ì½Ý·½Ê½")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½Ê½")]
     public Button buttonCreateShortcut;
 
-    [Header("·µ»Ø")]
+    [Header("ï¿½ï¿½ï¿½ï¿½")]
     public Button buttonRet;
 
     private AudioClip _clipSubstitute;
@@ -94,7 +94,7 @@ public class Settings : MonoBehaviour {
             if (helpSprite != null) {
                 helpImage.sprite = helpSprite;
             } else {
-                Debug.LogWarning("ÕÒ²»µ½ Resources/Help.png£¬»òÕßËü²»ÊÇ Sprite ÀàÐÍ");
+                Debug.LogWarning("ï¿½Ò²ï¿½ï¿½ï¿½ Resources/Help.pngï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ Sprite ï¿½ï¿½ï¿½ï¿½");
             }
         }
 
@@ -135,7 +135,7 @@ public class Settings : MonoBehaviour {
         SavePlaytime(_playtimeSeconds);
     }
 
-    // ~~~ ÒôÁ¿ ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ ~~~ //
     void OnVolumeChanged(float value) {
         if (BGMPlayer.Instance != null) {
             BGMPlayer.Instance.SetVolume(value);
@@ -151,7 +151,7 @@ public class Settings : MonoBehaviour {
         musicValueText.text = Mathf.RoundToInt(value * 100) + "%";
     }
 
-    // ~~~ ÒôÀÖÇÐ»» ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ï¿½Ð»ï¿½ ~~~ //
     void ToggleMusicPanel() {
         SetPanelVisible(!musicListPanel.activeSelf);
     }
@@ -189,14 +189,14 @@ public class Settings : MonoBehaviour {
         text.color = selected ? SELECTED_COLOR : NORMAL_COLOR;
     }
 
-    // ~~~ °ïÖú ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ ~~~ //
     void OnHelpClick() {
         if (helpPanel != null) {
             helpPanel.SetActive(true);
         }
     }
 
-    // ~~~ ºãÐÇÑÝ»¯¼ÇÂ¼ ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ï¿½Ý»ï¿½ï¿½ï¿½Â¼ ~~~ //
     void OnOpenRecordsClick() {
         string root = GetSimulationRoot();
         string path = Path.Combine(root, "simulations");
@@ -206,7 +206,7 @@ public class Settings : MonoBehaviour {
         OpenFolder(path);
     }
 
-    // ~~~ É¾³ýÈ«²¿¼ÇÂ¼ ~~~ //
+    // ~~~ É¾ï¿½ï¿½È«ï¿½ï¿½ï¿½ï¿½Â¼ ~~~ //
     void OnDeleteRecordsClick() {
         string root = GetSimulationRoot();
         string mainSeq = Path.Combine(root, "simulations", "sim_text");
@@ -216,7 +216,7 @@ public class Settings : MonoBehaviour {
         deleted += DeleteFilesIn(mainSeq);
         deleted += DeleteFilesIn(wd);
 
-        FloatingText.Show($"ÒÑÉ¾³ý {deleted} ¸ö¼ÇÂ¼ÎÄ¼þ");
+        FloatingText.Show($"ï¿½ï¿½É¾ï¿½ï¿½ {deleted} ï¿½ï¿½ï¿½ï¿½Â¼ï¿½Ä¼ï¿½");
     }
 
     int DeleteFilesIn(string folder) {
@@ -228,13 +228,13 @@ public class Settings : MonoBehaviour {
                 count++;
             }
             catch (Exception e) {
-                Debug.LogWarning($"É¾³ýÊ§°Ü {file}: {e.Message}");
+                Debug.LogWarning($"É¾ï¿½ï¿½Ê§ï¿½ï¿½ {file}: {e.Message}");
             }
         }
         return count;
     }
 
-    // ~~~ ÎÒµÄÊý¾Ý ~~~ //
+    // ~~~ ï¿½Òµï¿½ï¿½ï¿½ï¿½ï¿½ ~~~ //
     void OnMyDataClick() {
         double seconds = LoadPlaytime();
         double minutes = seconds / 60.0;
@@ -242,22 +242,22 @@ public class Settings : MonoBehaviour {
 
         string msg;
         if (hours >= 1) {
-            msg = $"ÓÎÍæ×ÜÊ±³¤ {hours:F2} Ð¡Ê±";
+            msg = $"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ {hours:F2} Ð¡Ê±";
         } else {
-            msg = $"ÓÎÍæ×ÜÊ±³¤ {minutes:F2} ·ÖÖÓ";
+            msg = $"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ {minutes:F2} ï¿½ï¿½ï¿½ï¿½";
         }
 
         FloatingText.Show(msg, 3f);
     }
 
-    // ~~~ ÖÆ×÷ÈËÔ± ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô± ~~~ //
     void SetupCreditsVideo() {
         if (creditsVideoPlayer == null) return;
 
         VideoClip clip = Resources.Load<VideoClip>("videos/credits");
-        if (clip == null) clip = Resources.Load<VideoClip>("videos/cresits"); // ¼æÈÝ¾ÉÎÄ¼þÃû
+        if (clip == null) clip = Resources.Load<VideoClip>("videos/cresits"); // ï¿½ï¿½ï¿½Ý¾ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½
         if (clip == null) {
-            Debug.LogWarning("ÕÒ²»µ½ Resources/videos/credits.mp4");
+            Debug.LogWarning("ï¿½Ò²ï¿½ï¿½ï¿½ Resources/videos/credits.mp4");
             return;
         }
 
@@ -293,35 +293,35 @@ public class Settings : MonoBehaviour {
         }
     }
 
-    // ~~~ ´´½¨×ÀÃæ¿ì½Ý·½Ê½ ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½Ê½ ~~~ //
     void OnCreateShortcutClick() {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
         try {
             string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
             string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
-            string lnkPath = Path.Combine(desktop, "ÐÐÐÇÇòÓîÖæ.lnk");
+            string lnkPath = Path.Combine(desktop, "ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.lnk");
 
             if (File.Exists(lnkPath)) {
-                FloatingText.Show("¿ì½Ý·½Ê½ÒÑ¾­´æÔÚ", 3f);
+                FloatingText.Show("ï¿½ï¿½Ý·ï¿½Ê½ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½", 3f);
                 return;
             }
 
             CreateWindowsShortcut(lnkPath, exePath);
-            FloatingText.Show("¿ì½Ý·½Ê½´´½¨³É¹¦", 3f);
+            FloatingText.Show("ï¿½ï¿½Ý·ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ï¿½É¹ï¿½", 3f);
         } catch (Exception e) {
-            FloatingText.Show($"´´½¨Ê§°Ü£º{e.Message}", 3f);
+            FloatingText.Show($"ï¿½ï¿½ï¿½ï¿½Ê§ï¿½Ü£ï¿½{e.Message}", 3f);
         }
 #elif UNITY_ANDROID
-        FloatingText.Show("Android ÉÏ²»Ö§³Ö´´½¨×ÀÃæ¿ì½Ý·½Ê½", 3f);
+        FloatingText.Show("Android ï¿½Ï²ï¿½Ö§ï¿½Ö´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý·ï¿½Ê½", 3f);
 #else
-        FloatingText.Show("¸Ã¹¦ÄÜ½öÔÚ´ò°üºóµÄ Windows °æ±¾¿ÉÓÃ", 3f);
+        FloatingText.Show("ï¿½Ã¹ï¿½ï¿½Ü½ï¿½ï¿½Ú´ï¿½ï¿½ï¿½ï¿½ï¿½ Windows ï¿½æ±¾ï¿½ï¿½ï¿½ï¿½", 3f);
 #endif
     }
 
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
     void CreateWindowsShortcut(string lnkPath, string targetPath) {
-        // Mono Àï²»ÄÜÖ±½Ó×ö COM ¼¤»î£¨Activator.CreateInstance »áÅ×
-        // "Unmanaged activation is not supported"£©£¬ËùÒÔ¸Ä³Éµ÷ PowerShell µÄ WScript.Shell¡£
+        // Mono ï¿½ï²»ï¿½ï¿½Ö±ï¿½ï¿½ï¿½ï¿½ COM ï¿½ï¿½ï¿½î£¨Activator.CreateInstance ï¿½ï¿½ï¿½ï¿½
+        // "Unmanaged activation is not supported"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô¸Ä³Éµï¿½ PowerShell ï¿½ï¿½ WScript.Shellï¿½ï¿½
         string escape(string s) { return s.Replace("'", "''"); }
         string dir = Path.GetDirectoryName(targetPath) ?? "";
         string script =
@@ -339,21 +339,21 @@ public class Settings : MonoBehaviour {
         };
 
         using (var proc = System.Diagnostics.Process.Start(psi)) {
-            if (proc == null) throw new Exception("ÎÞ·¨Æô¶¯ powershell");
+            if (proc == null) throw new Exception("ï¿½Þ·ï¿½ï¿½ï¿½ï¿½ï¿½ powershell");
             if (!proc.WaitForExit(15000)) {
                 try { proc.Kill(); } catch { }
-                throw new Exception("´´½¨¿ì½Ý¼ü³¬Ê±");
+                throw new Exception("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¼ï¿½ï¿½ï¿½Ê±");
             }
             if (proc.ExitCode != 0) {
-                throw new Exception("powershell ·µ»Ø´íÎóÂë " + proc.ExitCode);
+                throw new Exception("powershell ï¿½ï¿½ï¿½Ø´ï¿½ï¿½ï¿½ï¿½ï¿½ " + proc.ExitCode);
             }
         }
 
-        if (!File.Exists(lnkPath)) throw new Exception("¿ì½Ý·½Ê½Î´Éú³É");
+        if (!File.Exists(lnkPath)) throw new Exception("ï¿½ï¿½Ý·ï¿½Ê½Î´ï¿½ï¿½ï¿½ï¿½");
     }
 #endif
 
-    // ~~~ ÓÎÍæÊ±³¤´æÈ¡ ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½È¡ ~~~ //
     string GetPlaytimePath() {
         string root = GetSimulationRoot();
         string dir = Path.Combine(root, "UPB-data");
@@ -381,7 +381,7 @@ public class Settings : MonoBehaviour {
             File.WriteAllText(path, JsonUtility.ToJson(data, true));
         }
         catch (Exception e) {
-            Debug.LogWarning($"±£´æÓÎÍæÊ±³¤Ê§°Ü: {e.Message}");
+            Debug.LogWarning($"ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê±ï¿½ï¿½Ê§ï¿½ï¿½: {e.Message}");
         }
     }
 
@@ -390,7 +390,7 @@ public class Settings : MonoBehaviour {
         public double total_seconds;
     }
 
-    // ~~~ Â·¾¶Óë´ò¿ªÎÄ¼þ¼Ð ~~~ //
+    // ~~~ Â·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½ ~~~ //
     string GetSimulationRoot() {
 #if UNITY_EDITOR
         return Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
@@ -408,13 +408,13 @@ public class Settings : MonoBehaviour {
 #elif UNITY_STANDALONE_OSX || UNITY_EDITOR_OSX
         System.Diagnostics.Process.Start("open", path);
 #elif UNITY_ANDROID
-        FloatingText.Show("Android ÉÏ²»Ö§³Ö´ò¿ªÎÄ¼þ¼Ð£¬Â·¾¶ÒÑ±£´æ", 3f);
+        FloatingText.Show("Android ï¿½Ï²ï¿½Ö§ï¿½Ö´ï¿½ï¿½Ä¼ï¿½ï¿½Ð£ï¿½Â·ï¿½ï¿½ï¿½Ñ±ï¿½ï¿½ï¿½", 3f);
 #else
         System.Diagnostics.Process.Start(path);
 #endif
     }
 
-    // ~~~ ·µ»Ø ~~~ //
+    // ~~~ ï¿½ï¿½ï¿½ï¿½ ~~~ //
     void OnRetClick() {
         SavePlaytime(_playtimeSeconds);
         SceneManager.LoadScene("MainMenu");
