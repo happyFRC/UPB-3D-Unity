@@ -14,7 +14,7 @@ using UnityEngine;
 ///    "The character with Unicode value \uXXXX was not found in the [...] font asset ..."
 ///    FRCFONT SDF 没有收录部分生僻字，运行时会替代成空格并打印警告。
 ///
-/// 只拦截 Warning，其它级别的日志原样输出；不改变任何业务逻辑。
+/// 只拦截这两类已知无害的消息，其它级别和内容原样输出；不改变任何业务逻辑。
 /// </summary>
 public static class PlayerLogFilter {
     private static bool _installed;
@@ -46,13 +46,17 @@ public static class PlayerLogFilter {
         }
 
         private static bool ShouldDrop(LogType logType, string message) {
-            if (logType != LogType.Warning || string.IsNullOrEmpty(message)) return false;
+            if (string.IsNullOrEmpty(message)) return false;
 
             // 1) 屏幕坐标越界（相机 / UGUI 换算触发）。
+            // 这条是 Unity 已知的无害警告，某些版本会以 Warning 或 Error 级别输出，
+            // 统一按消息内容过滤，避免打包后写满 player.log。
             if (message.StartsWith("Screen position out of view frustum",
                     StringComparison.Ordinal)) {
                 return true;
             }
+
+            if (logType != LogType.Warning) return false;
 
             // 2) TMP 字体缺字。
             if (message.IndexOf("was not found in the", StringComparison.Ordinal) >= 0 &&
