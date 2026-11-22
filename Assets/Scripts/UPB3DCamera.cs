@@ -11,6 +11,7 @@ using UnityEngine.EventSystems;
 /// - 自由视角最近可到焦点上方 1km。
 /// - WASD 速度 = 0.2 * 到上一个选中天体的距离（没有选中则用原点到摄像机的距离）。
 /// </summary>
+[DefaultExecutionOrder(-1000)]
 public class UPB3DCamera : MonoBehaviour {
     public Camera cam;
     public Transform target;
@@ -18,19 +19,28 @@ public class UPB3DCamera : MonoBehaviour {
     [Header("缩放控制")]
     public float zoomSpeed = 0.5f;
 
-    [Tooltip("最大缩放距离（会被 HardMaxZoomUnits 夹住）")]
+    [Tooltip("非沙盘模式的最大缩放距离（会被 HardMaxZoomUnits 夹住）；沙盘模式使用 sandboxMaxZoom")]
     public float maxZoom = 1e10f;
 
     /// <summary>
     /// 相机离焦点的最大距离硬上限（Unity 单位）：100 亿。
-    /// 所有场景统一；即使别的脚本（如 StarLightPoint）把 maxZoom 调大也不会超过它。
+    /// 非沙盘场景统一；即使别的脚本（如 StarLightPoint）把 maxZoom 调大也不会超过它。
     /// </summary>
     public const float HardMaxZoomUnits = 1e10f;
 
-    /// <summary>实际生效的最远距离：min(场景里配的 maxZoom, 统一硬上限)。</summary>
-    private float EffectiveMaxZoom => Mathf.Min(maxZoom, HardMaxZoomUnits);
+    /// <summary>
+    /// 沙盘模式的临时最大缩放距离（Unity 单位）。
+    /// 暂时取消原来的 100 亿硬上限，1e16 单位约等于 1 亿光年。
+    /// 想恢复限制时把它调回 HardMaxZoomUnits 即可。
+    /// </summary>
+    public float sandboxMaxZoom = 1e16f;
 
-    /// <summary>把距离夹在 [最近, 最远] 之间，最远永远不超过 100 亿单位。</summary>
+    /// <summary>实际生效的最远距离：沙盘用 sandboxMaxZoom，其它场景仍受统一硬上限约束。</summary>
+    private float EffectiveMaxZoom => _sandboxMode
+        ? Mathf.Max(minZoom, sandboxMaxZoom)
+        : Mathf.Min(maxZoom, HardMaxZoomUnits);
+
+    /// <summary>把距离夹在 [最近, 最远] 之间；沙盘最远用 sandboxMaxZoom，其它场景不超过 100 亿单位。</summary>
     private float ClampZoom(float distance) {
         float max = EffectiveMaxZoom;
         float min = Mathf.Min(minZoom, max);
@@ -90,7 +100,7 @@ public class UPB3DCamera : MonoBehaviour {
         _focusPoint = newTarget.position;
         _following = true;
 
-        float targetSize = Mathf.Abs(newTarget.localScale.x);
+        float targetSize = VirtualTargetSize(newTarget);
         minZoom = _sandboxMode
             ? Mathf.Max(targetSize, 1e-7f)
             : Mathf.Max(targetSize * targetMultiplier + minZoomOffset, 0.001f);
@@ -124,10 +134,37 @@ public class UPB3DCamera : MonoBehaviour {
         return Mathf.Abs(plane.GetDistanceToPoint(transform.position));
     }
 
+    /// <summary>
+    /// 目标在“虚拟（真实基准）单位”下的尺寸。沙盘里 Transform 的 localScale
+    /// 已经乘过世界缩放，这里除回去，相机的最小距离才对应真实天体直径。
+    /// </summary>
+    private float VirtualTargetSize(Transform candidate) {
+        if (candidate == null) return 0f;
+
+        if (_sandboxMode) {
+            // 天体直接取真实直径，避免渲染尺寸被最小值钳制后除回去不准。
+            SandboxStar star = candidate.GetComponent<SandboxStar>();
+            if (star != null) return (float)System.Math.Max(star.VisualDiameter, 1e-9);
+
+            SandboxPlanet planet = candidate.GetComponent<SandboxPlanet>();
+            if (planet != null) return (float)System.Math.Max(planet.VisualDiameter, 1e-9);
+        }
+
+        float size = Mathf.Abs(candidate.localScale.x);
+        if (_sandboxMode && SandboxWorldScale.Scale > 1e-30) {
+            size = (float)(size / SandboxWorldScale.Scale);
+        }
+        return size;
+    }
+
     /// <summary>沙盘放置：相机到平面的高度不足时才后退到指定高度；已经更高就不动。</summary>
     public void EnsurePlaneHeight(Plane plane, float minHeight, Transform focusTarget) {
         if (focusTarget == null || minHeight <= 0f) return;
-        if (PlaneHeight(plane) >= minHeight) return;
+
+        // PlaneHeight 是渲染单位；换算成真实基准单位再和 minHeight 比较。
+        float height = PlaneHeight(plane);
+        if (_sandboxMode) height = (float)SandboxWorldScale.ToVirtual(height);
+        if (height >= minHeight) return;
 
         // 仰视时 sin 为负，取绝对值；接近水平时给个下限避免距离爆炸。
         float sin = Mathf.Abs(Mathf.Sin(Mathf.Clamp(_angleY, -PitchLimit, PitchLimit) * Mathf.Deg2Rad));
@@ -139,8 +176,29 @@ public class UPB3DCamera : MonoBehaviour {
     private Vector2 _lastTouchPos;
     private bool _wasTouching = false;
 
+    private void Awake() {
+        if (cam == null) cam = GetComponent<Camera>();
+        DisableLegacyMouseEvents();
+    }
+
+    /// <summary>
+    /// 项目里没有使用 OnMouseDown / OnMouseEnter 等遗留鼠标事件。
+    /// 把 eventMask 设为 0 后，Unity 的 SendMouseEvents 会直接跳过这台相机，
+    /// 不再每帧调用 ScreenPointToRay(Input.mousePosition)（拉远到 2 光年以上时
+    /// 该调用会刷 "Screen position out of view frustum"）。
+    /// UGUI 点击、GraphicRaycaster 和项目自己的 Physics.Raycast 都不受 eventMask 影响。
+    /// </summary>
+    private void DisableLegacyMouseEvents() {
+        if (cam != null) cam.eventMask = 0;
+    }
+
     private void Start() {
         if (cam == null) cam = GetComponent<Camera>();
+        if (!_sandboxMode) {
+            // 从沙盘切到普通演化场景时，清掉残留的世界缩放。
+            SandboxWorldScale.Reset();
+        }
+        DisableLegacyMouseEvents();
 
         if (target == null) {
             GameObject go = GameObject.FindGameObjectWithTag("Player");
@@ -160,7 +218,7 @@ public class UPB3DCamera : MonoBehaviour {
     private void LateUpdate() {
         if (!_sandboxMode && target == null) return;
 
-        float targetSize = target != null ? Mathf.Abs(target.transform.localScale.x) : 0f;
+        float targetSize = VirtualTargetSize(target);
 
         if (_sandboxMode) {
             if (_following && target != null) {
@@ -235,12 +293,15 @@ public class UPB3DCamera : MonoBehaviour {
     private void DetachToFreeFocus() {
         if (target != null) {
             float radius = Mathf.Abs(target.localScale.x) * 0.5f;
+            float radiusVirtual = _sandboxMode
+                ? (float)SandboxWorldScale.ToVirtual(radius)
+                : radius;
             Vector3 away = transform.position - target.position;
             if (away.sqrMagnitude < 1e-10f) away = transform.forward;
             away.Normalize();
 
             _focusPoint = target.position + away * radius;
-            _distance = Mathf.Max(_sandboxFreeMinUnits, _distance - radius);
+            _distance = Mathf.Max(_sandboxFreeMinUnits, _distance - radiusVirtual);
             _logDistance = Mathf.Log(_distance);
         }
 
@@ -323,27 +384,64 @@ public class UPB3DCamera : MonoBehaviour {
         _distance = newDistance;
     }
 
+    private double _lastAppliedWorldScale = -1.0;
+
     private void UpdateCameraPosition() {
         if (!_sandboxMode && target == null) return;
 
-        Vector3 focus = _sandboxMode
-            ? _focusPoint
-            : (target != null ? target.position : _focusPoint);
+        if (_sandboxMode) {
+            // 沙盘：相机永远停在焦点附近的固定渲染距离，缩放改变世界比例尺。
+            double newScale = SandboxWorldScale.ScaleForVirtualDistance(_distance);
+            if (_lastAppliedWorldScale > 0.0 && !_following) {
+                // 自由焦点是一个渲染空间点；改变世界缩放时按比例缩放它，
+                // 让它对应的逻辑位置保持不动。
+                double ratio = newScale / _lastAppliedWorldScale;
+                _focusPoint = new Vector3(
+                    (float)(_focusPoint.x * ratio),
+                    (float)(_focusPoint.y * ratio),
+                    (float)(_focusPoint.z * ratio));
+            }
+            _lastAppliedWorldScale = newScale;
+            SandboxWorldScale.SetVirtualDistance(_distance);
 
-        Quaternion rotation = Quaternion.Euler(_angleY, _angleX, 0f);
-        Vector3 offset = rotation * new Vector3(0f, 0f, -_distance);
-        transform.position = focus + offset;
-        transform.LookAt(focus);
+            Vector3 focus = _focusPoint;
+            Quaternion rotation = Quaternion.Euler(_angleY, _angleX, 0f);
+            float renderDistance = (float)SandboxWorldScale.CameraRenderDistance;
+            transform.position = focus + rotation * new Vector3(0f, 0f, -renderDistance);
+            transform.LookAt(focus);
+
+            if (cam != null) {
+                // 世界已经缩到焦点附近，near/far 不再随距离放大，深度精度保持稳定。
+                cam.nearClipPlane = 0.001f;
+                cam.farClipPlane = 1e12f;
+            }
+            return;
+        }
+
+        Vector3 nonSandboxFocus = target != null ? target.position : _focusPoint;
+        Quaternion nonSandboxRotation = Quaternion.Euler(_angleY, _angleX, 0f);
+        Vector3 offset = nonSandboxRotation * new Vector3(0f, 0f, -_distance);
+        transform.position = nonSandboxFocus + offset;
+        transform.LookAt(nonSandboxFocus);
 
         if (cam != null) {
-            // 远裁剪面随距离扩展
-            float requiredFarPlane = _distance + 10000f;
-            if (cam.farClipPlane < requiredFarPlane) cam.farClipPlane = requiredFarPlane;
+            // 非沙盘场景仍使用原来的“相机拉远”逻辑。
+            float originDistance = Vector3.Distance(transform.position, Vector3.zero);
+            float requiredFarPlane = Mathf.Max(1e7f, _distance + 10000f, originDistance * 24f);
+            cam.farClipPlane = Mathf.Clamp(requiredFarPlane, 1e7f, 1e18f);
 
-            // 沙盘自由视角可以到 1km 级别，近裁剪面需要降到米级。
-            float desiredNear = _sandboxMode
-                ? Mathf.Clamp(_distance * 0.00001f, 1e-7f, 1000f)
-                : Mathf.Clamp(_distance * 0.001f, 0.01f, 1000f);
+            float targetRadius = target != null
+                ? Mathf.Abs(target.localScale.x) * 0.5f
+                : 0f;
+            float focusSurface = Mathf.Max(0f, _distance - targetRadius);
+            float planeDistance = Mathf.Abs(transform.position.y);
+
+            float nearest = _distance;
+            if (planeDistance > 1e-9f) nearest = Mathf.Min(nearest, planeDistance);
+            if (focusSurface > 1e-9f) nearest = Mathf.Min(nearest, focusSurface);
+
+            float desiredNear = Mathf.Min(nearest * 0.5f, _distance * 0.001f);
+            desiredNear = Mathf.Clamp(desiredNear, 1e-7f, Mathf.Max(1e-7f, cam.farClipPlane * 0.5f));
             cam.nearClipPlane = desiredNear;
         }
     }

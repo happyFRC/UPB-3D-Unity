@@ -157,7 +157,8 @@ public class CameraDistanceHUD : MonoBehaviour {
 
 
 
-        double dUnit = Vector3.Distance(observer.transform.position, target.position);
+        double dUnit = SandboxWorldScale.ToVirtual(
+            Vector3.Distance(observer.transform.position, target.position));
 
         double dKm = dUnit * kmPerUnit;
 

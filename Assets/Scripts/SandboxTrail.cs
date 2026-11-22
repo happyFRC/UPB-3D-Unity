@@ -160,7 +160,7 @@ public class SandboxTrail : MonoBehaviour {
         }
     }
 
-    private void Update() {
+    private void LateUpdate() {
         if (_body == null || !_body.alive || _line == null) {
             if (_line != null) _line.enabled = false;
             return;
@@ -197,6 +197,13 @@ public class SandboxTrail : MonoBehaviour {
     private void UpdateOrbitLine() {
         if (_body == null || _body.planet == null || !_body.isOrbiting ||
             _body.orbitTarget == null || !OrbitVisible) {
+            if (_orbitLine != null) _orbitLine.enabled = false;
+            return;
+        }
+
+        // 缩放到很远时轨道直径只有亚像素，宽度却按屏幕像素换算，会变成一团；
+        // 直接用和轨迹相同的距离淡出规则隐藏掉。
+        if (ComputeOrbitFade() <= 0.001f) {
             if (_orbitLine != null) _orbitLine.enabled = false;
             return;
         }
@@ -329,7 +336,8 @@ public class SandboxTrail : MonoBehaviour {
         else if (_body.fragment != null) visual = _body.fragment.transform;
         if (visual == null) return 1f;
 
-        double diameterUnits = 2.0 * _body.orbitRadiusM / MetersPerUnit;
+        double diameterUnits = 2.0 * _body.orbitRadiusM / MetersPerUnit *
+                               SandboxWorldScale.Scale;
         float fadeStart = (float)(10.0 * diameterUnits);
         float fadeEnd = Mathf.Max(fadeStart * 2f, fadeStart + 1e-4f);
         float distance = Vector3.Distance(camera.transform.position, visual.position);

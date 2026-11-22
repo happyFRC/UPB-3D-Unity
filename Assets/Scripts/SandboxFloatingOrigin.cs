@@ -20,13 +20,19 @@ public static class SandboxFloatingOrigin {
     }
 
     public static Vector3 ToRender(double x, double y, double z) {
-        return new Vector3((float)(x - X), (float)(y - Y), (float)(z - Z));
+        double scale = SandboxWorldScale.Scale;
+        return new Vector3(
+            (float)((x - X) * scale),
+            (float)((y - Y) * scale),
+            (float)((z - Z) * scale));
     }
 
     public static void FromRender(Vector3 render, out double x, out double y, out double z) {
-        x = render.x + X;
-        y = render.y + Y;
-        z = render.z + Z;
+        double scale = SandboxWorldScale.Scale;
+        if (scale < 1e-30) scale = 1e-30;
+        x = render.x / scale + X;
+        y = render.y / scale + Y;
+        z = render.z / scale + Z;
     }
 
     public static void Rebase(double x, double y, double z,
