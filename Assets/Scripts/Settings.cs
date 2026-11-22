@@ -66,18 +66,24 @@ public class Settings : MonoBehaviour {
         _clipFreeze = Resources.Load<AudioClip>("music/Freeze");
         _clipInfinity = Resources.Load<AudioClip>("music/infinity");
 
+        BindVolumeControls();
+
         float vol = PlayerPrefs.GetFloat("MusicVolume", 1f);
-        musicVolumeSlider.value = vol;
+        if (musicVolumeSlider != null) {
+            musicVolumeSlider.value = vol;
+            musicVolumeSlider.onValueChanged.AddListener(OnVolumeChanged);
+        } else {
+            Debug.LogWarning("[Settings] musicVolumeSlider 未绑定，音量滑条将不可用");
+        }
         UpdateVolumeText(vol);
-        musicVolumeSlider.onValueChanged.AddListener(OnVolumeChanged);
 
         SetPanelVisible(false);
 
-        buttonChangeBGM.onClick.AddListener(ToggleMusicPanel);
-        buttonSubstitute.onClick.AddListener(() => SelectMusic(MusicChoice.Substitute));
-        buttonFreeze.onClick.AddListener(() => SelectMusic(MusicChoice.Freeze));
-        buttonInfinity.onClick.AddListener(() => SelectMusic(MusicChoice.Infinity));
-        buttonRet.onClick.AddListener(OnRetClick);
+        if (buttonChangeBGM != null) buttonChangeBGM.onClick.AddListener(ToggleMusicPanel);
+        if (buttonSubstitute != null) buttonSubstitute.onClick.AddListener(() => SelectMusic(MusicChoice.Substitute));
+        if (buttonFreeze != null) buttonFreeze.onClick.AddListener(() => SelectMusic(MusicChoice.Freeze));
+        if (buttonInfinity != null) buttonInfinity.onClick.AddListener(() => SelectMusic(MusicChoice.Infinity));
+        if (buttonRet != null) buttonRet.onClick.AddListener(OnRetClick);
 
         if (buttonHelp != null) buttonHelp.onClick.AddListener(OnHelpClick);
         if (buttonOpenRecords != null) buttonOpenRecords.onClick.AddListener(OnOpenRecordsClick);
@@ -108,9 +114,11 @@ public class Settings : MonoBehaviour {
     }
 
     void Update() {
-        if (musicListPanel.activeSelf && Input.GetMouseButtonDown(0)) {
+        if (musicListPanel != null && musicListPanel.activeSelf &&
+            Input.GetMouseButtonDown(0)) {
             if (!IsPointerOver(musicListPanel) &&
-                !IsPointerOver(buttonChangeBGM.gameObject)) {
+                (buttonChangeBGM == null ||
+                 !IsPointerOver(buttonChangeBGM.gameObject))) {
                 SetPanelVisible(false);
             }
         }
@@ -148,16 +156,95 @@ public class Settings : MonoBehaviour {
     }
 
     void UpdateVolumeText(float value) {
-        musicValueText.text = Mathf.RoundToInt(value * 100) + "%";
+        if (musicValueText != null) {
+            musicValueText.text = Mathf.RoundToInt(value * 100) + "%";
+        }
+    }
+
+    /// <summary>
+    /// 绑定重建后的音量滑条及其百分比文本。
+    /// 场景里有可能改名为 MusicVolumeSlider / Label_VolumePercentage，
+    /// 所以这里按名字优先查找；滑条组件缺失时自动补上并接好 Fill/Handle。
+    /// </summary>
+    private void BindVolumeControls() {
+        GameObject sliderRoot = GameObject.Find("MusicVolumeSlider");
+        Slider namedSlider = FindSliderByName("MusicVolumeSlider");
+        if (namedSlider == null && sliderRoot != null) {
+            namedSlider = sliderRoot.GetComponent<Slider>();
+            if (namedSlider == null) {
+                namedSlider = sliderRoot.GetComponentInChildren<Slider>(true);
+            }
+            // 重建的滑条根节点没有 Slider 组件时，以它为准补一个，
+            // 不要退回旧场景里那个已经废弃的 Slider。
+            if (namedSlider == null) {
+                namedSlider = sliderRoot.AddComponent<Slider>();
+            }
+        }
+
+        if (namedSlider != null) {
+            musicVolumeSlider = namedSlider;
+        } else if (musicVolumeSlider == null) {
+            musicVolumeSlider = FindObjectOfType<Slider>(true);
+        }
+
+        if (musicVolumeSlider != null) {
+            ConfigureVolumeSlider(musicVolumeSlider);
+        }
+
+        TextMeshProUGUI namedLabel = FindLabelByName("Label_VolumePercentage");
+        if (namedLabel != null) {
+            musicValueText = namedLabel;
+        } else if (musicValueText == null) {
+            musicValueText = FindLabelByName("MusicValueText");
+        }
+    }
+
+    private static Slider FindSliderByName(string objectName) {
+        foreach (Slider slider in FindObjectsOfType<Slider>(true)) {
+            if (slider.name == objectName) return slider;
+        }
+        return null;
+    }
+
+    private static TextMeshProUGUI FindLabelByName(string objectName) {
+        foreach (TextMeshProUGUI text in FindObjectsOfType<TextMeshProUGUI>(true)) {
+            if (text.name == objectName) return text;
+        }
+        return null;
+    }
+
+    private static void ConfigureVolumeSlider(Slider slider) {
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+
+        // Slider 组件可能挂在 MusicVolumeSlider 根节点，也可能挂在其子节点；
+        // Fill/Handle 统一从重建后的根节点找。
+        Transform root = slider.transform;
+        GameObject namedRoot = GameObject.Find("MusicVolumeSlider");
+        if (namedRoot != null) root = namedRoot.transform;
+
+        Transform fill = root.Find("Fill Area/Fill");
+        if (fill == null) fill = slider.transform.Find("Fill Area/Fill");
+        Transform handle = root.Find("Handle Slide Area/Handle");
+        if (handle == null) handle = slider.transform.Find("Handle Slide Area/Handle");
+
+        if (fill != null) slider.fillRect = fill as RectTransform;
+        if (handle != null) {
+            slider.handleRect = handle as RectTransform;
+            Image handleImage = handle.GetComponent<Image>();
+            if (handleImage != null) slider.targetGraphic = handleImage;
+        }
     }
 
     // ~~~ �����л� ~~~ //
     void ToggleMusicPanel() {
-        SetPanelVisible(!musicListPanel.activeSelf);
+        if (musicListPanel != null) SetPanelVisible(!musicListPanel.activeSelf);
     }
 
     void SetPanelVisible(bool visible) {
-        musicListPanel.SetActive(visible);
+        if (musicListPanel != null) musicListPanel.SetActive(visible);
     }
 
     void SelectMusic(MusicChoice choice) {
