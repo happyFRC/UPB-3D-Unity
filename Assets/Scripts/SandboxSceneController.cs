@@ -151,6 +151,8 @@ public class SandboxSceneController : MonoBehaviour {
     private TMP_InputField _planetGreenhouseInput;
     private UnitButton _planetDistanceUnit;
     private TMP_Text _planetDistanceValue;
+    private TMP_Text _planetGeneralVelocity;
+    private UnitButton _planetGeneralVelocityUnit;
     private TMP_Text _planetWavePowerValue;
     private TMP_InputField _planetWaveLowInput;
     private TMP_InputField _planetWaveHighInput;
@@ -525,9 +527,9 @@ public class SandboxSceneController : MonoBehaviour {
 
         if (snapshot == null) return;
         SandboxPhysicsBody body = SandboxPhysicsSystem.GetBody(planet);
+        RefreshPlanetGeneralVelocity(body);
         double radiusM = planet.radiusEarth * SandboxPlanetModel.EarthRadiusKm * 1000.0;
-        double area = 4.0 * Math.PI * radiusM * radiusM;
-        double thermal = SandboxPhysicsSystem.StefanBoltzmann *
+        double area = 4.0 * Math.PI * radiusM * radiusM;        double thermal = SandboxPhysicsSystem.StefanBoltzmann *
                          Math.Pow(planet.temperatureK, 4.0) * area;
         double greenhouse = Math.Clamp(planet.greenhouseFactor, 0.0, 1.0);
 
@@ -631,6 +633,13 @@ public class SandboxSceneController : MonoBehaviour {
         if (_planetPressureValue != null) {
             _planetPressureValue.text = FormatPlanetPressure(snapshot.pressureAtm, PlanetPressureUnit);
         }
+    }
+
+    private void RefreshPlanetGeneralVelocity(SandboxPhysicsBody body) {
+        if (_planetGeneralVelocity == null || body == null) return;
+        double speed = body.velocityMps.Magnitude;
+        _planetGeneralVelocity.text = FormatUnitValue(speed, "speed",
+            _planetGeneralPanel, "AutoParameter_Velocity", FormatValue(speed / 1000.0));
     }
 
     private void RefreshPlanetMechanicsFields(SandboxPlanet planet, SandboxPhysicsBody body) {
@@ -1197,6 +1206,17 @@ public class SandboxSceneController : MonoBehaviour {
             _planetDistanceUnit = AttachUnit(planetDistanceRow, "Unit_Switch",
                 new[] { "m", "km", "AU", "ly", "Mpc" }, RefreshPlanetParameterFields);
             _planetDistanceValue = FindText(planetDistanceRow, "Text_Parameter");
+
+            // 通用模块的速度行（场景里已有 AutoParameter_Velocity，但之前没接线）。
+            Transform planetVelocityRow = _planetGeneralPanel != null
+                ? FindDeep(_planetGeneralPanel.transform, "AutoParameter_Velocity")
+                : null;
+            if (planetVelocityRow != null) {
+                SetPlanetRowUnit(_planetGeneralPanel, "AutoParameter_Velocity", "km/s", "speed");
+                _planetGeneralVelocityUnit = GetRowUnit(_planetGeneralPanel,
+                    "AutoParameter_Velocity");
+                _planetGeneralVelocity = FindText(planetVelocityRow, "Text_Parameter");
+            }
         }
     }
 
@@ -1621,6 +1641,7 @@ public class SandboxSceneController : MonoBehaviour {
         _planetGravityUnit?.ResetAuto();
         _planetPressureUnit?.ResetAuto();
         _planetDistanceUnit?.ResetAuto();
+        _planetGeneralVelocityUnit?.ResetAuto();
     }
 
     private void SetSectionLabelColor(string name, Color color) {
@@ -1803,6 +1824,8 @@ public class SandboxSceneController : MonoBehaviour {
         if (Array.IndexOf(units, "Mearth") >= 0 || Array.IndexOf(units, "Msun") >= 0) return "mass";
         if (Array.IndexOf(units, "Myr") >= 0 || Array.IndexOf(units, "Gyr") >= 0) return "time";
         if (Array.IndexOf(units, "g/cm3") >= 0 || Array.IndexOf(units, "kg/m3") >= 0) return "density";
+        if (Array.IndexOf(units, "km/s") >= 0 || Array.IndexOf(units, "m/s") >= 0 ||
+            Array.IndexOf(units, "c") >= 0) return "speed";
         if (Array.IndexOf(units, "度") >= 0 || Array.IndexOf(units, "弧度") >= 0 ||
             Array.IndexOf(units, "GRA") >= 0) return "angle";
         return "";
@@ -4725,6 +4748,7 @@ public class SandboxSceneController : MonoBehaviour {
         if (_planetPressureValue != null) {
             _planetPressureValue.text = FormatPlanetPressure(snapshot.pressureAtm, PlanetPressureUnit);
         }
+        RefreshPlanetGeneralVelocity(SandboxPhysicsSystem.GetBody(planet));
 
         RefreshLockButtonState(_planetLockPositionButton,
             SandboxPhysicsSystem.GetBody(_selectedPlanet));

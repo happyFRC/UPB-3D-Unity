@@ -195,12 +195,12 @@ Shader "UPB/SandboxPlanet"
 
                     // 与 C#（SandboxStar.IlluminationFadeStartAu/EndAu）一致的规则：
                     // 1) 太阳在 1 AU 处亮度 = 1；
-                    // 2) 阈值按 √L 缩放的等效距离判断：30~300 AU 平滑淡出，更远完全照不亮；
+                    // 2) 阈值按 √L 缩放的等效距离判断：90~900 AU 平滑淡出，更远完全照不亮；
                     // 3) 单颗恒星封顶 1.2，避免近距离过曝。
                     float fadeStart = _SandboxLightFadeStartAu > 0.0
-                        ? _SandboxLightFadeStartAu : 30.0;
+                        ? _SandboxLightFadeStartAu : 90.0;
                     float fadeEnd = _SandboxLightFadeEndAu > fadeStart + 0.001
-                        ? _SandboxLightFadeEndAu : fadeStart + 270.0;
+                        ? _SandboxLightFadeEndAu : fadeStart + 810.0;
                     float irradiance = luminosity / (distanceAu * distanceAu);
                     float effectiveAu = distanceAu / sqrt(luminosity);
                     float t = saturate((effectiveAu - fadeStart) / (fadeEnd - fadeStart));

@@ -339,7 +339,7 @@ public class SandboxPlanet : MonoBehaviour {
                 Vector3 position = star.transform.position;
                 _starPixels[count] = new Color(
                     position.x, position.y, position.z,
-                    (float)System.Math.Max(star.snapshot.luminosityLsun, 1e-8));
+                    (float)System.Math.Max(25*star.snapshot.luminosityLsun, 1e-8));
 
                 var (r, g, b) = Spectrum.GetBlackbodyColor(star.snapshot.temperatureK);
                 _starPixels[ShaderMaxStarLights + count] = new Color(r, g, b, 1f);

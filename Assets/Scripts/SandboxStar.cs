@@ -100,12 +100,12 @@ public class SandboxStar : MonoBehaviour {
 
     /// <summary>
     /// 行星照明的淡出阈值（单位：等效 AU）。
-    /// 1 L☉ 恒星：30 AU 之内正常照明，30~300 AU 平滑淡出，300 AU 之外完全照不亮。
+    /// 1 L☉ 恒星：90 AU 之内正常照明，90~900 AU 平滑淡出，900 AU 之外完全照不亮。
     /// 阈值随 √L 缩放——用“等效距离 = 实际距离 / √L”判断，所以亮星照得更远。
     /// 这两个值会同时喂给 UPB/SandboxPlanet 着色器，改这里就够了。
     /// </summary>
-    public const double IlluminationFadeStartAu = 30.0;
-    public const double IlluminationFadeEndAu = 300.0;
+    public const double IlluminationFadeStartAu = 90.0;
+    public const double IlluminationFadeEndAu = 900.0;
 
     /// <summary>
     /// 这颗恒星在给定距离上的照明系数（0~1），与着色器的淡出规则完全一致。
