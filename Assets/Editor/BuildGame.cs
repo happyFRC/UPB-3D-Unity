@@ -4,10 +4,31 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 
 public static class BuildGame {
-    private const string OutputFolder =
-        @"C:\Users\14806\Desktop\UPBUnity\行星球宇宙Test-V4.1-等待261101发布-非最终定稿";
-    private const string OutputExe = "行星球宇宙Test-V4.1.exe";
+    // 打包输出不再是写死的绝对路径：
+    //   默认 <项目根>/Builds/行星球宇宙Test-V4.1/（.gitignore 已忽略 /Builds/）
+    //   需要换位置时设环境变量 UPB_BUILD_DIR（作为根目录，下面仍会再套一层产品名-版本）
+    private const string ProductName = "行星球宇宙Test";
+    private const string BundleVersion = "4.1";
+    private const string OutputRootEnv = "UPB_BUILD_DIR";
+    private const string DefaultOutputRoot = "Builds";
     private const string IconPath = "Assets/Resources/icon.png";
+
+    private static string ProjectRoot =>
+        Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+
+    private static string BuildName => $"{ProductName}-V{BundleVersion}";
+
+    private static string OutputFolder {
+        get {
+            string custom = System.Environment.GetEnvironmentVariable(OutputRootEnv);
+            string root = string.IsNullOrWhiteSpace(custom)
+                ? Path.Combine(ProjectRoot, DefaultOutputRoot)
+                : custom;
+            return Path.Combine(root, BuildName);
+        }
+    }
+
+    private static string OutputExe => BuildName + ".exe";
 
     private static void EnsureAlwaysIncludedShaders() {
         string[] shaderPaths = {
@@ -49,8 +70,8 @@ public static class BuildGame {
 
     public static void Build() {
         EnsureAlwaysIncludedShaders();
-        PlayerSettings.bundleVersion = "4.1";
-        PlayerSettings.productName = "行星球宇宙Test";
+        PlayerSettings.bundleVersion = BundleVersion;
+        PlayerSettings.productName = ProductName;
         Texture2D icon = AssetDatabase.LoadAssetAtPath<Texture2D>(IconPath);
         if (icon != null) {
             PlayerSettings.SetIconsForTargetGroup(
@@ -83,5 +104,42 @@ public static class BuildGame {
         if (summary.result != BuildResult.Succeeded) {
             throw new System.Exception("[Build] failed: " + summary.result);
         }
+
+        CopyBuiltinMods(path);
+    }
+
+    /// <summary>
+    /// 把工程根目录的 BuiltinMods/ 拷进打包结果：
+    ///   内置模组源码 → &lt;输出目录&gt;/&lt;exe名&gt;_Data/StreamingAssets/Mods/&lt;模组&gt;/
+    /// 运行时 ModManager 从 Application.streamingAssetsPath/Mods 读。
+    /// （内置模组源码不能放 Assets/StreamingAssets，否则 Unity 会把 .cs 当游戏脚本编译。）
+    /// </summary>
+    private static void CopyBuiltinMods(string exePath) {
+        string source = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "BuiltinMods"));
+        if (!Directory.Exists(source)) {
+            Debug.Log("[Build] 没有 BuiltinMods/，跳过内置模组");
+            return;
+        }
+
+        string dataFolder = Path.ChangeExtension(exePath, null) + "_Data";
+        string target = Path.Combine(dataFolder, "StreamingAssets", "Mods");
+        Directory.CreateDirectory(target);
+
+        int copied = 0;
+        foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories)) {
+            string relative = file.Substring(source.Length)
+                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            // bin/obj 是 IDE 编译产物，不能塞进发行包。
+            string normalized = "/" + relative.Replace('\\', '/') + "/";
+            if (normalized.Contains("/bin/") || normalized.Contains("/obj/")) continue;
+
+            string destination = Path.Combine(target, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination) ?? target);
+            File.Copy(file, destination, true);
+            copied++;
+        }
+
+        Debug.Log("[Build] 内置模组已复制 " + copied + " 个文件到 " + target);
     }
 }

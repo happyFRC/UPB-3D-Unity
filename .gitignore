@@ -51,3 +51,15 @@ ExportedObj/
 
 # UPB
 /UPB-data/*
+
+# 模组工程例外：csproj / sln 要进仓库，否则别人拉下来没有补全
+!Mods/**/*.csproj
+!Mods/**/*.sln
+!BuiltinMods/**/*.csproj
+!BuiltinMods/**/*.sln
+
+# 模组工程的编译产物（csproj 只给 IDE 用）
+/Mods/*/bin/
+/Mods/*/obj/
+/BuiltinMods/*/bin/
+/BuiltinMods/*/obj/

@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "com.agents-unity-bridge": "https://github.com/WarrenMondeville/harness-unity-bridge.git?path=package",
+    "com.github-glitchenzo.nugetforunity": "https://gitcode.com/gh_mirrors/nu/NuGetForUnity.git?path=/src/NuGetForUnity",
     "com.unity.2d.sprite": "1.0.0",
     "com.unity.2d.tilemap": "1.0.0",
     "com.unity.ads": "4.4.2",
