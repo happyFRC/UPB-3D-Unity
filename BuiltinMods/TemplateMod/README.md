@@ -39,4 +39,28 @@ public class MyMod : UPBMod {
 - **只有主文件 `MyMod.cs` 里定义的 `UPBMod` 实现会被实例化并调用 `Startup`**；
 - 主文件缺失、或主文件里没有实现 `UPBMod` 的类 → 该模组被跳过，面板显示「已跳过」，日志里有原因；
 - 其它文件里的 `UPBMod` 实现一律忽略，但它们的类型可以被主文件引用（一起编译成一个程序集）；
-- 子文件夹不参与编译。
+- 子文件夹里的 .cs 也会一起编译（`bin/`、`obj/` 除外）。
+
+## 模组资源（贴图 / 文本 / 任意文件）
+
+`Resource(path, id)` 指向"某个根目录下的某个文件"：
+
+- `path`：相对路径，例如 `"Textures/Planet.png"`、`"Data/planets.json"`；
+- `id`：**模组文件夹名**（相对 `Mods/` 或 `BuiltinMods/`）；省略或写 `"default"` 就是内置 `Resources`。
+
+```csharp
+SandboxRegister.RegisterPlanet(new PlanetData {
+    name = "我的行星",
+    mass = 1.0, radius = 1.0, temperature = 288.0,
+    surface    = SandboxRegister.Resource("Textures/Planet.png", "MyMod"),
+    atmosphere = SandboxRegister.Resource("Textures/Clouds.png", "MyMod"),
+});
+
+// 它只是个引用，本身不做读取
+Resource icon = SandboxRegister.Resource("icon.png", "MyMod");
+```
+
+- `Resource` 只保存 `id` + `path`（类似 Minecraft 的 `ResourceLocation`），不负责读文件；
+- 需要磁盘文件时用 `GetFile()`（返回 `FileInfo`，内置 Resources 资源没有实体文件，返回 `null`）；
+- 贴图由游戏在需要时加载：模组里的 png/jpg 直接读磁盘，内置走 `Resources`，找不到会回退并打警告；
+- 序列化成 `模组名:相对路径` 存进存档，读档时自动还原。

@@ -5889,8 +5889,8 @@ public class SandboxSceneController : MonoBehaviour {
                 ? save.trailColorG : 200f / 255f,
             trailColorB = save.trailColorR + save.trailColorG + save.trailColorB > 0f
                 ? save.trailColorB : 200f / 255f,
-            surface = new PlanetLayer { texture = save.surfaceTexturePath },
-            atmosphere = new PlanetLayer { texture = save.atmosphereTexturePath },
+            surface = new Resource(save.surfaceTexturePath),
+            atmosphere = new Resource(save.atmosphereTexturePath),
             atmosphereShell = save.atmosphereShell,
             isBox = save.isBox,
             boxXKm = save.boxXKm,
@@ -6091,12 +6091,10 @@ public class SandboxSceneController : MonoBehaviour {
                 : name.EndsWith("c") ? 0.1960784f : 0.5019608f,
             trailColorB = name.EndsWith("b") ? 0.7843137f
                 : name.EndsWith("c") ? 0.3921569f : 0f,
-            surface = new PlanetLayer { texture = "Textures/Planets/" + texture },
+            surface = new Resource("Textures/Planets/" + texture),
             // 水瓶座一b 借用地球的云层（带 alpha 的云图）+ 外圈光晕。
-            atmosphere = new PlanetLayer {
-                texture = name.EndsWith("b")
-                    ? "Textures/Planets/Earth_Atmosphere" : string.Empty
-            },
+            atmosphere = new Resource(name.EndsWith("b")
+                ? "Textures/Planets/Earth_Atmosphere" : string.Empty),
             atmosphereShell = name.EndsWith("b")
         };
 

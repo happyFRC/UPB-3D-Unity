@@ -26,14 +26,17 @@ public static class SandboxPlanetCardRenderer {
 
         // 优先用预烘焙的 256×256 卡片图：列表里只需要缩略图，
         // 没必要为了它把 4K 地表贴图加载进显存。
-        Texture2D baked = Resources.Load<Texture2D>(
-            "Textures/PlanetCards/" + System.IO.Path.GetFileName(texturePath));
-        if (baked != null) {
-            _cache[texturePath] = baked;
-            return baked;
+        // 模组贴图没有预烘焙图，直接用源图渲染。
+        if (!SandboxPlanet.IsModResource(texturePath)) {
+            Texture2D baked = Resources.Load<Texture2D>(
+                "Textures/PlanetCards/" + System.IO.Path.GetFileName(texturePath));
+            if (baked != null) {
+                _cache[texturePath] = baked;
+                return baked;
+            }
         }
 
-        Texture2D source = Resources.Load<Texture2D>(texturePath);
+        Texture2D source = SandboxPlanet.LoadTexture(texturePath);
         if (source == null) return null;
         EnsureScene();
 
@@ -132,7 +135,7 @@ public static class SandboxPlanetCardRenderer {
 
     private static Texture2D SafeTexture(string path) {
         if (string.IsNullOrWhiteSpace(path)) return Texture2D.whiteTexture;
-        Texture2D tex = Resources.Load<Texture2D>(path);
+        Texture2D tex = SandboxPlanet.LoadTexture(path);
         return tex != null ? tex : Texture2D.whiteTexture;
     }
 

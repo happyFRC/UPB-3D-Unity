@@ -187,6 +187,14 @@ public static class SandboxRegister {
     /// baseFactor 是这个单位本身换算到国际单位基准值的倍数（yr → 31556952）；
     /// 传 0 或负数会被当成 1，避免调用方写 default 时把所有换算率乘成 0。
     /// </summary>
+    /// <summary>
+    /// 资源引用（类似 ResourceLocation，只描述指向哪个文件）。id 是模组文件夹名（相对 Mods/ 或 BuiltinMods/），
+    /// 传 "default"（或省略）就指内置 Resources。
+    ///
+    /// 例：
+    ///   surface = SandboxRegister.Resource("Textures/Planets/Earth_Surface");          // 内置贴图
+    ///   surface = SandboxRegister.Resource("Textures/Planet.png", "MyMod");            // 模组里的贴图
+    /// </summary>
     public static SandboxUnitDefinition[] StandardUnits(string symbol,
                                                         double baseFactor = 1.0,
                                                         bool needSmallUnits = false,

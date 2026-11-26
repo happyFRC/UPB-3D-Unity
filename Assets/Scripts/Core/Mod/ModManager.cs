@@ -232,10 +232,11 @@ public class ModManager : MonoBehaviour {
             enabled = PlayerPrefs.GetInt(EnabledPrefPrefix + id, 0) != 0
         };
 
-        string descPath = Path.Combine(folder, "desc.json");
-        if (File.Exists(descPath)) {
+        FileInfo descFile = new Resource("desc.json", id).GetFile();
+        if (descFile != null) {
             try {
-                ModDescription desc = JsonUtility.FromJson<ModDescription>(File.ReadAllText(descPath));
+                ModDescription desc = JsonUtility.FromJson<ModDescription>(
+                    File.ReadAllText(descFile.FullName));
                 if (desc != null) {
                     if (!string.IsNullOrWhiteSpace(desc.name)) entry.displayName = desc.name.Trim();
                     entry.author = desc.author;
@@ -247,11 +248,11 @@ public class ModManager : MonoBehaviour {
             }
         }
 
-        string iconPath = Path.Combine(folder, "icon.png");
-        if (File.Exists(iconPath)) {
+        FileInfo iconFile = new Resource("icon.png", id).GetFile();
+        if (iconFile != null) {
             try {
                 Texture2D texture = new(2, 2);
-                if (texture.LoadImage(File.ReadAllBytes(iconPath))) entry.icon = texture;
+                if (texture.LoadImage(File.ReadAllBytes(iconFile.FullName))) entry.icon = texture;
                 else Debug.LogWarning($"[Mods] {id}: icon.png 读取失败");
             } catch (Exception e) {
                 Debug.LogWarning($"[Mods] {id}: icon.png 读取失败（{e.Message}）");
@@ -268,16 +269,19 @@ public class ModManager : MonoBehaviour {
     }
 
     private LoadOutcome TryLoad(ModEntry entry, List<MetadataReference> references) {
-        string[] sources = Directory.GetFiles(entry.folder, "*.cs", SearchOption.TopDirectoryOnly);
+        // 子文件夹里的 .cs 也一起编译（bin/obj 是 IDE 产物，跳过）。
+        string[] sources = Directory.GetFiles(entry.folder, "*.cs", SearchOption.AllDirectories)
+            .Where(file => !IsBuildArtifact(entry.folder, file))
+            .ToArray();
         if (sources.Length == 0) {
             entry.error = "目录下没有 .cs 文件";
             Debug.LogError($"[Mods] {entry.id}: {entry.error}");
             return LoadOutcome.Failed;
         }
 
-        // 主文件必须与文件夹同名；没有就直接跳过，不编译。
-        string mainFile = Path.Combine(entry.folder, entry.id + ".cs");
-        if (!File.Exists(mainFile)) {
+        // 主文件必须与文件夹同名（放在模组根目录）；没有就直接跳过，不编译。
+        FileInfo mainFile = new Resource(entry.id + ".cs", entry.id).GetFile();
+        if (mainFile == null) {
             entry.error = $"缺少主文件 {entry.id}.cs，已跳过";
             Debug.LogWarning($"[Mods] {entry.id}: {entry.error}");
             return LoadOutcome.Skipped;
@@ -286,10 +290,16 @@ public class ModManager : MonoBehaviour {
         try {
             SyntaxTree[] trees = sources
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .Select(f => CSharpSyntaxTree.ParseText(
-                    File.ReadAllText(f),
-                    CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest),
-                    path: f))
+                .Select(f => {
+                    // 统一通过 Resource 定位文件（模组根目录 + 相对路径）。
+                    string relative = Path.GetRelativePath(entry.folder, f).Replace('\\', '/');
+                    FileInfo file = new Resource(relative, entry.id).GetFile();
+                    string code = File.ReadAllText(file != null ? file.FullName : f);
+                    return CSharpSyntaxTree.ParseText(
+                        code,
+                        CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest),
+                        path: f);
+                })
                 .ToArray();
 
             CSharpCompilation compilation = CSharpCompilation.Create(
@@ -314,7 +324,7 @@ public class ModManager : MonoBehaviour {
             Assembly assembly = Assembly.Load(stream.ToArray());
 
             // 只认主文件里定义的 UPBMod 实现，其它文件里的实现一律忽略。
-            Type entryType = FindEntryType(entry.id, compilation, assembly);
+            Type entryType = FindEntryType(mainFile.FullName, compilation, assembly);
             if (entryType == null) {
                 entry.error = $"主文件 {entry.id}.cs 里没有实现 UPBMod 的类，已跳过";
                 Debug.LogWarning($"[Mods] {entry.id}: {entry.error}");
@@ -336,10 +346,10 @@ public class ModManager : MonoBehaviour {
     /// 在主文件（&lt;文件夹名&gt;.cs）里找实现 UPBMod 的类；
     /// 主文件之外的实现不参与选择。
     /// </summary>
-    private static Type FindEntryType(string id, CSharpCompilation compilation, Assembly assembly) {
-        string mainFileName = id + ".cs";
+    private static Type FindEntryType(string mainFile, CSharpCompilation compilation,
+            Assembly assembly) {
         foreach (SyntaxTree tree in compilation.SyntaxTrees) {
-            if (!string.Equals(Path.GetFileName(tree.FilePath), mainFileName,
+            if (!string.Equals(Path.GetFullPath(tree.FilePath), mainFile,
                     StringComparison.OrdinalIgnoreCase)) {
                 continue;
             }
@@ -377,6 +387,12 @@ public class ModManager : MonoBehaviour {
         // 嵌套类在反射里是 "Ns.Outer+Inner"，ToDisplayString 用的是点号。
         return assembly.GetTypes().FirstOrDefault(t =>
             string.Equals(t.FullName?.Replace('+', '.'), displayName, StringComparison.Ordinal));
+    }
+
+    /// <summary>bin/obj 这类 IDE 编译产物不参与模组编译。</summary>
+    private static bool IsBuildArtifact(string root, string file) {
+        string relative = file.Substring(root.Length).Replace('\\', '/');
+        return relative.Contains("/bin/") || relative.Contains("/obj/");
     }
 
     /// <summary>编译模组用的引用集合：当前进程里已加载的程序集。</summary>

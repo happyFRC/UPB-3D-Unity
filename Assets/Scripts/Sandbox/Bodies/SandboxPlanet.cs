@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 /// <summary>
@@ -7,6 +8,8 @@ using UnityEngine;
 /// 恒星照明与高温自发光都在 UPB/SandboxPlanet 里完成。
 /// </summary>
 public class SandboxPlanet : MonoBehaviour {
+    private static readonly Dictionary<string, Texture2D> TextureCache =
+        new(StringComparer.OrdinalIgnoreCase);
     public string planetName;
     public double massEarth;
     public double radiusEarth;
@@ -545,9 +548,54 @@ public class SandboxPlanet : MonoBehaviour {
         if (_atmosphereHalo != null) _atmosphereHalo.SetActive(false);
     }
 
-    private static Texture2D LoadTexture(string path) {
-        if (string.IsNullOrWhiteSpace(path)) return null;
-        return Resources.Load<Texture2D>(path);
+    /// <summary>贴图字符串是否是模组资源（"模组名:相对路径"）。</summary>
+    public static bool IsModResource(string texture) {
+        if (string.IsNullOrEmpty(texture)) return false;
+        int colon = texture.IndexOf(':');
+        if (colon <= 0) return false;
+        return texture.IndexOf('/') < 0 || colon < texture.IndexOf('/');
+    }
+
+    /// <summary>
+    /// 解析贴图字符串（Resource.ToString() 的 "模组名:相对路径" 或普通 Resources 路径）并加载。
+    /// 模组贴图读 Mods/ 或 BuiltinMods/ 下的文件，找不到回退到 Resources。
+    /// </summary>
+    public static Texture2D LoadTexture(string texture) {
+        if (string.IsNullOrWhiteSpace(texture)) return null;
+        if (TextureCache.TryGetValue(texture, out Texture2D cached)) return cached;
+
+        Texture2D result = null;
+        if (IsModResource(texture)) {
+            int colon = texture.IndexOf(':');
+            string id = texture.Substring(0, colon);
+            string relative = texture.Substring(colon + 1);
+            result = LoadModTexture(id, relative);
+            if (result == null) {
+                Debug.LogWarning($"[Resource] 模组 {id} 里找不到 {relative}，回退到 Resources");
+                result = Resources.Load<Texture2D>(relative);
+            }
+        } else {
+            result = Resources.Load<Texture2D>(texture);
+        }
+
+        TextureCache[texture] = result;   // 失败也缓存，避免反复读盘
+        return result;
+    }
+
+    private static Texture2D LoadModTexture(string id, string relative) {
+        FileInfo file = new Resource(relative, id).GetFile();
+        if (file != null) {
+            try {
+                Texture2D texture = new(2, 2, TextureFormat.RGBA32, false);
+                if (texture.LoadImage(File.ReadAllBytes(file.FullName))) {
+                    texture.name = "ModTexture_" + id + "_" + file.Name;
+                    return texture;
+                }
+            } catch (Exception e) {
+                Debug.LogWarning($"[Resource] 读取 {id}/{relative} 失败: {e.Message}");
+            }
+        }
+        return null;
     }
 
     private void OnDestroy() {

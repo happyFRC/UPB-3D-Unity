@@ -2,11 +2,6 @@ using System;
 using UnityEngine;
 
 [Serializable]
-public class PlanetLayer {
-    public string texture;          // Resources path, empty = 该层不显示
-}
-
-[Serializable]
 public class PlanetData {
     public string name;
     public double temperature;      // K
@@ -29,8 +24,11 @@ public class PlanetData {
     public float trailColorG = 200f / 255f;
     public float trailColorB = 200f / 255f;
 
-    public PlanetLayer surface;     // 地表层
-    public PlanetLayer atmosphere;  // 大气层，叠加在 surface 之上
+    /// <summary>地表贴图（null = 不显示）。</summary>
+    public Resource surface;
+
+    /// <summary>大气贴图，叠加在 surface 之上（null = 不显示）。</summary>
+    public Resource atmosphere;
 
     // 有大气贴图时默认只显示贴图（金星）；置 true 会额外保留外圈光晕（地球：云层 + 光晕）。
     public bool atmosphereShell;
@@ -38,11 +36,14 @@ public class PlanetData {
     // 旧版单贴图字段：只有没有 surface 时才作为兼容回退。
     public string texture;
 
-    public string SurfaceTexture => surface != null && !string.IsNullOrEmpty(surface.texture)
-        ? surface.texture
-        : texture;
+    public string SurfaceTexture {
+        get {
+            string path = surface != null ? surface.ToString() : null;
+            return !string.IsNullOrEmpty(path) ? path : texture;
+        }
+    }
 
-    public string AtmosphereTexture => atmosphere != null ? atmosphere.texture : string.Empty;
+    public string AtmosphereTexture => atmosphere != null ? atmosphere.ToString() : string.Empty;
 
     // ~~~ 彩蛋（长方体，继承行星类）~~~
     public bool isBox;
