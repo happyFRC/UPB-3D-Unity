@@ -1789,7 +1789,7 @@ public class SandboxSceneController : MonoBehaviour {
         unit.onUnitChanged += _ => changed?.Invoke();
 
         TMP_Text label = switchTransform.GetComponentInChildren<TMP_Text>(true);
-        if (label != null) label.text = unit.GetUnit();
+        if (label != null) label.text = unit.GetDisplayUnit();
         return unit;
     }
 
@@ -2015,7 +2015,7 @@ public class SandboxSceneController : MonoBehaviour {
         SandboxUnitDefinition def = SandboxUnits.AutoDefinition("length", meters,
             new[] { "m", "km", "AU", "ly" });
         if (def == null) return FormatValue(meters) + " m";
-        return FormatValue(SandboxUnits.FromBase(meters, def)) + " " + def.symbol;
+        return FormatValue(SandboxUnits.FromBase(meters, def)) + " " + def.DisplaySymbol;
     }
 
     private void SetupPlacementPivot() {

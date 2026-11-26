@@ -110,7 +110,7 @@ public class OtherStarCalculationScene : MonoBehaviour {
     public double GetTemperature(double originalK) {
         string unit = unitTemperature.GetUnit();
         if (unit == "K") return originalK;
-        if (unit == "°C") return originalK - 273.15;
+        if (unit == "C" || unit == "°C") return originalK - 273.15;
         return (originalK - 273.15) * (9.0 / 5.0) + 32;
     }
 

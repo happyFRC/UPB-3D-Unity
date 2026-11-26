@@ -250,7 +250,7 @@ public class UnitPickerPanel : MonoBehaviour {
             bool valid = unitIndex < _units.Length;
             _unitButtons[i].gameObject.SetActive(valid);
             if (!valid) continue;
-            _unitLabels[i].text = _units[unitIndex];
+            _unitLabels[i].text = SandboxUnits.Display(_units[unitIndex]);
         }
 
         if (_pageLabel != null) _pageLabel.text = $"{_page + 1}/{_pageCount}";

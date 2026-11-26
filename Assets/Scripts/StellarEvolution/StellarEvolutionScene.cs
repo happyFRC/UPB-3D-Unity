@@ -191,7 +191,7 @@ public class StellarEvolutionScene : MonoBehaviour {
     public double GetTemperature(double original) {
         string unit = unitTemperature.GetUnit();
         if (unit == "K") return original;
-        else if (unit == "°C") return original - 273.15;
+        else if (unit == "C" || unit == "°C") return original - 273.15;
         else return (original - 273.15) * (9.0 / 5.0) + 32;
     }
 

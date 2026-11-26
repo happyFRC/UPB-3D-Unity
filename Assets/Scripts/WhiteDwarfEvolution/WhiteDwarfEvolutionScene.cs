@@ -132,7 +132,7 @@ public class WhiteDwarfEvolutionScene : MonoBehaviour {
         string unit = unitTemperature.GetUnit();
         if (unit == "K") {
             return original;
-        } else if (unit == "°C") {
+        } else if (unit == "C" || unit == "°C") {
             return original - 273.15;
         } else {
             return (original - 273.15) * (9.0 / 5.0) + 32;

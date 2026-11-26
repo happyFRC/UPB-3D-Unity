@@ -4,23 +4,27 @@ using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// 把运行时的所有日志写进 Assets 同级的 Logs/ 目录：
-///   Logs/log-yyyyMMdd-HHmmss.txt   （每次启动一个文件）
+/// 把运行时的所有日志写进 Logs/ 目录（每次启动一个 log-yyyyMMdd-HHmmss.txt）：
+///   编辑器：&lt;工程根&gt;/Logs/      （与 Assets 同级）
+///   打包后：&lt;游戏根&gt;/Logs/      （与 exe 同级）
+/// 如果游戏放在没有写权限的目录，会自动退到 Application.persistentDataPath/Logs。
 ///
 /// 用 Application.logMessageReceivedThreaded 捕获，**不替换** Debug.unityLogger.logHandler，
 /// 所以不会和 PlayerLogFilter / RuntimeLogFilter 抢 handler。
 /// 注意：被那两个过滤器主动丢弃的噪音（TMP 缺字、屏幕坐标越界）不会出现在文件里。
-///
-/// 打包后路径是 exe 所在目录下的 Logs/；编辑器里是工程根目录下的 Logs/。
 /// </summary>
 public static class GameLogFile {
-    private static readonly object _gate = new();
+    private static readonly object Gate = new();
     private static StreamWriter _writer;
     private static bool _installed;
 
     /// <summary>Logs 目录（绝对路径）。</summary>
-    public static string FolderPath =>
-        Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+    public static string FolderPath {
+        get {
+            if (!string.IsNullOrEmpty(FilePath)) return Path.GetDirectoryName(FilePath);
+            return Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+        }
+    }
 
     /// <summary>当前这次运行的日志文件（绝对路径），创建失败时为 null。</summary>
     public static string FilePath { get; private set; }
@@ -39,33 +43,51 @@ public static class GameLogFile {
         Application.quitting += Shutdown;
     }
 
+    private static string[] CandidateFolders() => new[] {
+        // 首选：与 Assets / exe 同级的 Logs
+        Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs")),
+        // 兜底：游戏目录不可写时（例如装在 Program Files）放到持久化数据目录
+        Path.Combine(Application.persistentDataPath, "Logs")
+    };
+
     private static void Open() {
-        try {
-            Directory.CreateDirectory(FolderPath);
-            FilePath = Path.Combine(FolderPath,
-                "log-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".txt");
+        foreach (string folder in CandidateFolders()) {
+            try {
+                Directory.CreateDirectory(folder);
+                string path = Path.Combine(folder,
+                    "log-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") + ".txt");
 
-            FileStream stream = new(FilePath, FileMode.Create, FileAccess.Write, FileShare.Read);
-            // 带 BOM 的 UTF-8：记事本 / 旧版编辑器在中文 Windows 上也能正确识别。
-            _writer = new StreamWriter(stream, new UTF8Encoding(true)) { AutoFlush = true };
+                FileStream stream = new(path, FileMode.Create, FileAccess.Write, FileShare.Read);
+                StreamWriter writer = new(stream, new UTF8Encoding(true)) { AutoFlush = true };
 
-            _writer.WriteLine("# 行星球宇宙日志");
-            _writer.WriteLine("# 开始时间: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-            _writer.WriteLine("# 版本: " + Application.version +
-                              "   Unity: " + Application.unityVersion +
-                              "   平台: " + Application.platform);
-            _writer.WriteLine(new string('-', 60));
-        } catch (Exception e) {
-            _writer = null;
-            FilePath = null;
-            Debug.LogWarning("[LogFile] 无法创建日志文件: " + e.Message);
+                writer.WriteLine("# 行星球宇宙日志");
+                writer.WriteLine("# 开始时间: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                writer.WriteLine("# 版本: " + Application.version +
+                                 "   Unity: " + Application.unityVersion +
+                                 "   平台: " + Application.platform);
+                writer.WriteLine(new string('-', 60));
+
+                lock (Gate) {
+                    _writer = writer;
+                    FilePath = path;
+                }
+
+                // 顺便在控制台打一行，方便确认日志写到哪儿了。
+                Debug.Log("[LogFile] 日志文件: " + path);
+                return;
+            } catch (Exception e) {
+                Debug.LogWarning("[LogFile] 无法在 " + folder + " 创建日志: " + e.Message);
+            }
         }
+
+        FilePath = null;
+        Debug.LogWarning("[LogFile] 所有候选目录都不可写，已关闭文件日志");
     }
 
     private static void OnLog(string condition, string stackTrace, LogType type) {
         if (_writer == null) return;
 
-        lock (_gate) {
+        lock (Gate) {
             if (_writer == null) return;
             try {
                 _writer.Write('[');
@@ -99,7 +121,7 @@ public static class GameLogFile {
     };
 
     private static void Shutdown() {
-        lock (_gate) {
+        lock (Gate) {
             try {
                 _writer?.Flush();
                 _writer?.Dispose();

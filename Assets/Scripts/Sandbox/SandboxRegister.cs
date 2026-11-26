@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 
 /// <summary>
 /// 沙盘注册表：天体（行星 / 矮行星 / 卫星 / 彩蛋 / 可选恒星）和单位表。
@@ -155,7 +156,8 @@ public static class SandboxRegister {
         try {
             BuiltinSandboxObjects.RegisterAll();
             _initialized = true;
-        } finally {
+        }
+        finally {
             _initializing = false;
         }
     }
@@ -178,5 +180,43 @@ public static class SandboxRegister {
             if (data != null && data.name == name) return data;
         }
         return null;
+    }
+
+    /// <summary>
+    /// 批量生成"某单位 + SI 前缀"的条目，例如 StandardUnits("W") → W/kW/MW/GW/TW/PW。
+    /// baseFactor 是这个单位本身换算到国际单位基准值的倍数（yr → 31556952）；
+    /// 传 0 或负数会被当成 1，避免调用方写 default 时把所有换算率乘成 0。
+    /// </summary>
+    public static SandboxUnitDefinition[] StandardUnits(string symbol,
+                                                        double baseFactor = 1.0,
+                                                        bool needSmallUnits = false,
+                                                        bool needBigUnits = false) {
+        if (baseFactor <= 0.0) baseFactor = 1.0;
+
+        List<SandboxUnitDefinition> units = new(){
+            SandboxUnits.NewUnit(symbol, 1.0 * baseFactor),
+            SandboxUnits.NewUnit("k" + symbol, 1e3 * baseFactor),
+            SandboxUnits.NewUnit("M" + symbol, 1e6 * baseFactor),
+            SandboxUnits.NewUnit("G" + symbol, 1e9 * baseFactor),
+            SandboxUnits.NewUnit("T" + symbol, 1e12 * baseFactor),
+            SandboxUnits.NewUnit("P" + symbol, 1e15 * baseFactor),
+        };
+
+        List<SandboxUnitDefinition> bigUnits = new(){
+            SandboxUnits.NewUnit("E" + symbol, 1e18 * baseFactor),
+            SandboxUnits.NewUnit("Z" + symbol, 1e21 * baseFactor),
+            SandboxUnits.NewUnit("Y" + symbol, 1e24 * baseFactor),
+        };
+
+        List<SandboxUnitDefinition> smallUnits = new(){
+            SandboxUnits.NewUnit("m" + symbol, 1e-3 * baseFactor),
+            SandboxUnits.NewUnit("μ" + symbol, 1e-6 * baseFactor),
+            SandboxUnits.NewUnit("n" + symbol, 1e-9 * baseFactor),
+        };
+
+        if (needSmallUnits) units.AddRange(smallUnits);
+        if (needBigUnits) units.AddRange(bigUnits);
+
+        return units.ToArray();
     }
 }

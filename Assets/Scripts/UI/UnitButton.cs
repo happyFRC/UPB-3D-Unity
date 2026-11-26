@@ -84,7 +84,7 @@ public class UnitButton : MonoBehaviour {
 
     private void RefreshLabel() {
         TextMeshProUGUI label = GetComponentInChildren<TextMeshProUGUI>(true);
-        if (label != null && !string.IsNullOrEmpty(GetUnit())) label.text = GetUnit();
+        if (label != null && !string.IsNullOrEmpty(GetUnit())) label.text = GetDisplayUnit();
     }
 
     /// <summary>按当前数值自动挑单位；用户手动选过的单位不会被覆盖。</summary>
@@ -108,6 +108,9 @@ public class UnitButton : MonoBehaviour {
         if (!string.IsNullOrEmpty(_selectedUnit)) return _selectedUnit;
         return units != null && units.Length > 0 ? units[Mathf.Clamp(currentUnit, 0, units.Length - 1)] : "";
     }
+
+    /// <summary>按钮上要显示的文字（R☉ / °C / kg/m³ 这类），内部标识仍是 GetUnit()。</summary>
+    public string GetDisplayUnit() => SandboxUnits.Display(GetUnit());
 
     public string GetCategory() {
         if (!string.IsNullOrEmpty(category)) return category;

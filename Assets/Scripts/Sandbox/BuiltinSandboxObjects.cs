@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Unity.VisualScripting;
 
 /// <summary>
 /// 内置沙盘数据（天体 + 单位表）。
@@ -2091,117 +2093,100 @@ public static class BuiltinSandboxObjects {
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "power",
             units = new[] {
-                Unit("W", 1.0),
-                Unit("kW", 1000.0),
-                Unit("MW", 1000000.0),
-                Unit("GW", 1000000000.0),
-                Unit("TW", 1000000000000.0),
-                Unit("Lsun", 3.828E+26),
-                Unit("LR136a1", 3.0624E+33),
-            }
+                SandboxUnits.NewUnit("Lsun", 3.828E+26, 0.0, "L☉"),
+                SandboxUnits.NewUnit("LR136a1", 3.0624E+33),
+            }.Concat(SandboxRegister.StandardUnits("W", 1.0, false, true)).ToArray()
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "length",
             units = new[] {
-                Unit("m", 1.0),
-                Unit("km", 1000.0),
-                Unit("mi", 1609.344),
-                Unit("Rearth", 6371000.0),
-                Unit("Rsun", 695700000.0),
-                Unit("AU", 149597870700.0),
-                Unit("ly", 9.4607304725808E+15),
-                Unit("pc", 30856775814913672.0),
-            }
+                SandboxUnits.NewUnit("mi", 1609.344),
+                SandboxUnits.NewUnit("Rearth", 6371000.0, 0.0, "R⊕"),
+                SandboxUnits.NewUnit("Rsun", 695700000.0, 0.0, "R☉"),
+                SandboxUnits.NewUnit("AU", 149597870700.0),
+                SandboxUnits.NewUnit("ly", 9.4607304725808E+15),
+                SandboxUnits.NewUnit("pc", 30856775814913672.0),
+            }.Concat(SandboxRegister.StandardUnits("m", 1.0, false, true)).ToArray()
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "time",
             units = new[] {
-                Unit("ms", 0.001),
-                Unit("s", 1.0),
-                Unit("min", 60.0),
-                Unit("hr", 3600.0),
-                Unit("d", 86400.0),
-                Unit("mth", 2629746.0),
-                Unit("yr", 31556952.0),
-                Unit("Myr", 31556952000000.0),
-                Unit("Gyr", 3.1556952E+16),
-            }
+                SandboxUnits.NewUnit("ms", 0.001),
+                SandboxUnits.NewUnit("s", 1.0),
+                SandboxUnits.NewUnit("min", 60.0),
+                SandboxUnits.NewUnit("hr", 3600.0),
+                SandboxUnits.NewUnit("d", 86400.0),
+                SandboxUnits.NewUnit("mth", 2629746.0),
+            }.Concat(SandboxRegister.StandardUnits("yr", 31556952.0)).ToArray()
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "energy",
-            units = new[] {
-                Unit("J", 1.0),
-                Unit("kJ", 1000.0),
-                Unit("MJ", 1000000.0),
-                Unit("GJ", 1000000000.0),
-            }
+            units = SandboxRegister.StandardUnits("J", 1.0, false, true)
         });
+
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "temperature",
             units = new[] {
-                Unit("K", 1.0),
-                Unit("C", 1.0, 273.15),
-                Unit("F", 0.55555555555555558, 255.37222222222221),
+                SandboxUnits.NewUnit("K", 1.0),
+                SandboxUnits.NewUnit("C", 1.0, 273.15, "°C"),
+                SandboxUnits.NewUnit("F", 0.55555555555555558, 255.37222222222221, "°F"),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "mass",
             units = new[] {
-                Unit("kg", 1.0),
-                Unit("t", 1000.0),
-                Unit("Mearth", 5.9722E+24),
-                Unit("MJup", 1.89813E+27),
-                Unit("Msun", 1.98847E+30),
+                SandboxUnits.NewUnit("kg", 1.0),
+                SandboxUnits.NewUnit("t", 1000.0),
+                SandboxUnits.NewUnit("Mearth", 5.9722E+24, 0.0, "M⊕"),
+                SandboxUnits.NewUnit("MJup", 1.89813E+27, 0.0, "M_J"),
+                SandboxUnits.NewUnit("Msun", 1.98847E+30, 0.0, "M☉"),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "speed",
             units = new[] {
-                Unit("m/s", 1.0),
-                Unit("km/h", 0.27777777777777779),
-                Unit("mph", 0.44704),
-                Unit("km/s", 1000.0),
-                Unit("c", 299792458.0),
+                SandboxUnits.NewUnit("m/s", 1.0),
+                SandboxUnits.NewUnit("km/h", 0.27777777777777779),
+                SandboxUnits.NewUnit("mph", 0.44704),
+                SandboxUnits.NewUnit("km/s", 1000.0),
+                SandboxUnits.NewUnit("c", 299792458.0),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "force",
             units = new[] {
-                Unit("N", 1.0),
-                Unit("kN", 1000.0),
-                Unit("MN", 1000000.0),
-                Unit("地月引力", 1.9805E+20),
-                Unit("日地引力", 3.5413E+22),
-            }
+                SandboxUnits.NewUnit("地月引力", 1.9805E+20),
+                SandboxUnits.NewUnit("日地引力", 3.5413E+22),
+            }.Concat(SandboxRegister.StandardUnits("N")).ToArray()
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "density",
             units = new[] {
-                Unit("kg/m3", 1.0),
-                Unit("g/cm3", 1000.0),
+                SandboxUnits.NewUnit("kg/m^3", 1.0, 0.0, "kg/m³"),
+                SandboxUnits.NewUnit("g/cm^3", 1000.0, 0.0, "g/cm³"),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "concentration",
             units = new[] {
-                Unit("mmol/L", 1.0),
-                Unit("mol/L", 1000.0),
+                SandboxUnits.NewUnit("mmol/L", 1.0),
+                SandboxUnits.NewUnit("mol/L", 1000.0),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "angle",
             units = new[] {
-                Unit("度", 1.0),
-                Unit("弧度", 57.295779513082323),
-                Unit("GRA", 0.9),
+                SandboxUnits.NewUnit("度", 1.0),
+                SandboxUnits.NewUnit("弧度", 57.295779513082323),
+                SandboxUnits.NewUnit("GRA", 0.9),
             }
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
             key = "wavelength",
             units = new[] {
-                Unit("nm", 1.0),
-                Unit("μm", 1000.0),
-                Unit("Å", 0.1),
+                SandboxUnits.NewUnit("nm", 1.0),
+                SandboxUnits.NewUnit("μm", 1000.0),
+                SandboxUnits.NewUnit("Å", 0.1),
             }
         });
     }
@@ -2221,8 +2206,4 @@ public static class BuiltinSandboxObjects {
             rotationPeriodDays = rotationPeriodDays,
         });
     }
-
-    /// <summary>单位简写。</summary>
-    private static SandboxUnitDefinition Unit(string symbol, double factor, double offset = 0.0) =>
-        new() { symbol = symbol, factor = factor, offset = offset };
 }

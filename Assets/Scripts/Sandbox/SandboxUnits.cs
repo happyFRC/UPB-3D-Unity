@@ -4,9 +4,17 @@ using UnityEngine;
 
 [Serializable]
 public class SandboxUnitDefinition {
+    /// <summary>内部标识：换算、比较、存档都用它，保持 ASCII。</summary>
     public string symbol;
+
+    /// <summary>界面上显示的名字；为空时用 symbol。例如 symbol="Rsun"、display="R☉"。</summary>
+    public string display;
+
     public double factor = 1.0;
     public double offset;
+
+    /// <summary>UI 用：有 display 用 display，否则用 symbol。</summary>
+    public string DisplaySymbol => string.IsNullOrEmpty(display) ? symbol : display;
 }
 
 [Serializable]
@@ -33,7 +41,44 @@ public class SandboxUnitCategory {
 public static class SandboxUnits {
     private static readonly Dictionary<string, SandboxUnitCategory> _categories =
         new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, string> _displayBySymbol =
+        new(StringComparer.OrdinalIgnoreCase);
     private static bool _loaded;
+
+    public static SandboxUnitDefinition NewUnit(string symbol, double factor, double offset = 0.0,
+            string display = null) {
+        return new() { symbol = symbol, factor = factor, offset = offset, display = display };
+    }
+
+    /// <summary>
+    /// UI 显示名：优先取注册时给的 display，其次查注册表里收集到的映射，最后回退成 symbol。
+    /// 例：Rsun → R☉、Mearth → M⊕、C → °C、kg/m^3 → kg/m³。
+    /// </summary>
+    public static string Display(string symbol) {
+        if (string.IsNullOrEmpty(symbol)) return symbol;
+
+        EnsureLoaded();
+        if (_displayBySymbol.TryGetValue(symbol, out string display) &&
+            !string.IsNullOrEmpty(display)) {
+            return display;
+        }
+
+        // 不在注册表里、但 UI 上会直接用到的符号（进化场景 / 引力单位等）。
+        return symbol switch {
+            "m/s2" => "m/s²",
+            "RSun" or "Rsun" => "R☉",
+            "REarth" or "Rearth" => "R⊕",
+            "MSun" or "Msun" => "M☉",
+            "MEarth" or "Mearth" => "M⊕",
+            "MJup" => "M_J",
+            "LSun" or "Lsun" => "L☉",
+            "C" or "°C" => "°C",
+            "F" or "°F" => "°F",
+            "kg/m^3" or "kg/m3" => "kg/m³",
+            "g/cm^3" or "g/cm3" => "g/cm³",
+            _ => symbol
+        };
+    }
 
     public static void EnsureLoaded() {
         if (_loaded) return;
@@ -51,6 +96,11 @@ public static class SandboxUnits {
 
             // 单位顺序由注册代码维护，便于温度这类带偏移的单位保持 K/C/F 的展示顺序。
             _categories[category.key] = category;
+
+            foreach (SandboxUnitDefinition unit in category.units) {
+                if (unit == null || string.IsNullOrEmpty(unit.symbol)) continue;
+                if (!string.IsNullOrEmpty(unit.display)) _displayBySymbol[unit.symbol] = unit.display;
+            }
         }
     }
 
@@ -72,9 +122,14 @@ public static class SandboxUnits {
             "°C" => "C",
             "°F" => "F",
             "M☉" => "Msun",
-            "Mearth" => "Mearth",
+            "M⊕" => "Mearth",
+            "M_J" => "MJup",
+            "R☉" => "Rsun",
+            "R⊕" => "Rearth",
+            "L☉" => "Lsun",
             "kg/m³" => "kg/m3",
             "g/cm³" => "g/cm3",
+            "m/s²" => "m/s2",
             _ => symbol,
         };
     }
@@ -96,12 +151,12 @@ public static class SandboxUnits {
     /// 例如 5,300,000 m → 5300 km；0.05 km（=50 m）→ 50 m。
     /// </summary>
     /// <summary>英制单位：自动切换时跳过，只有用户手动选才用。</summary>
-    private static readonly string[] AutoBlacklist = { "mi", "mph", "F", "°F", "ft", "in", "lb", "oz", "pc" };
+    private static readonly string[] _autoBlacklist = { "mi", "mph", "F", "°F", "ft", "in", "lb", "oz", "pc" };
 
     private static bool IsBlacklisted(SandboxUnitDefinition unit) {
         if (unit == null || string.IsNullOrEmpty(unit.symbol)) return false;
-        for (int i = 0; i < AutoBlacklist.Length; i++) {
-            if (string.Equals(AutoBlacklist[i], unit.symbol, StringComparison.OrdinalIgnoreCase)) {
+        for (int i = 0; i < _autoBlacklist.Length; i++) {
+            if (string.Equals(_autoBlacklist[i], unit.symbol, StringComparison.OrdinalIgnoreCase)) {
                 return true;
             }
         }
