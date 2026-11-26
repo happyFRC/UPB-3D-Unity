@@ -557,43 +557,48 @@ public class SandboxPlanet : MonoBehaviour {
     }
 
     /// <summary>
-    /// 解析贴图字符串（Resource.ToString() 的 "模组名:相对路径" 或普通 Resources 路径）并加载。
-    /// 模组贴图读 Mods/ 或 BuiltinMods/ 下的文件，找不到回退到 Resources。
+    /// 解析贴图字符串（Resource.ToString() 的 "id:相对路径" 或普通 Resources 路径）并加载：
+    ///   普通路径 → 先找各模组 Resource/default/&lt;路径&gt;（覆盖），再 Resources
+    ///   "id:路径" → 找各模组 Resource/&lt;id&gt;/&lt;路径&gt;，再 Resources
     /// </summary>
     public static Texture2D LoadTexture(string texture) {
         if (string.IsNullOrWhiteSpace(texture)) return null;
         if (TextureCache.TryGetValue(texture, out Texture2D cached)) return cached;
 
+        Resource resource = ParseTextureResource(texture);
         Texture2D result = null;
-        if (IsModResource(texture)) {
-            int colon = texture.IndexOf(':');
-            string id = texture.Substring(0, colon);
-            string relative = texture.Substring(colon + 1);
-            result = LoadModTexture(id, relative);
-            if (result == null) {
-                Debug.LogWarning($"[Resource] 模组 {id} 里找不到 {relative}，回退到 Resources");
-                result = Resources.Load<Texture2D>(relative);
+
+        FileInfo file = resource.GetFile();
+        if (file != null) result = LoadTexturedFile(file, resource.id + "_" + file.Name);
+
+        if (result == null) {
+            result = Resources.Load<Texture2D>(resource.path);
+            if (result == null && !resource.IsDefault) {
+                Debug.LogWarning($"[Resource] 找不到模组贴图 {resource.id}/{resource.path}");
             }
-        } else {
-            result = Resources.Load<Texture2D>(texture);
         }
 
         TextureCache[texture] = result;   // 失败也缓存，避免反复读盘
         return result;
     }
 
-    private static Texture2D LoadModTexture(string id, string relative) {
-        FileInfo file = new Resource(relative, id).GetFile();
-        if (file != null) {
-            try {
-                Texture2D texture = new(2, 2, TextureFormat.RGBA32, false);
-                if (texture.LoadImage(File.ReadAllBytes(file.FullName))) {
-                    texture.name = "ModTexture_" + id + "_" + file.Name;
-                    return texture;
-                }
-            } catch (Exception e) {
-                Debug.LogWarning($"[Resource] 读取 {id}/{relative} 失败: {e.Message}");
+    private static Resource ParseTextureResource(string texture) {
+        int colon = texture.IndexOf(':');
+        bool hasId = colon > 0 && (texture.IndexOf('/') < 0 || colon < texture.IndexOf('/'));
+        return hasId
+            ? new Resource(texture.Substring(colon + 1), texture.Substring(0, colon))
+            : new Resource(texture);
+    }
+
+    private static Texture2D LoadTexturedFile(FileInfo file, string name) {
+        try {
+            Texture2D texture = new(2, 2, TextureFormat.RGBA32, false);
+            if (texture.LoadImage(File.ReadAllBytes(file.FullName))) {
+                texture.name = "ModTexture_" + name;
+                return texture;
             }
+        } catch (Exception e) {
+            Debug.LogWarning($"[Resource] 读取 {file.FullName} 失败: {e.Message}");
         }
         return null;
     }

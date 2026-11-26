@@ -49,8 +49,13 @@ ExportedObj/
 /[Aa]ssets/[Ss]treamingAssets/aa/*
 /[Aa]ssets/Real Stars Skybox
 
-# UPB
+# UPB 玩家数据（编辑器里落在工程根目录，打包后在游戏目录）
+# 含：游玩时长 playtime.json、模组开关 mods.json 等
 /UPB-data/*
+
+# 玩家游玩产生的数据
+/screenshots/
+/simulations/
 
 # 模组工程例外：csproj / sln 要进仓库，否则别人拉下来没有补全
 !Mods/**/*.csproj
@@ -63,3 +68,6 @@ ExportedObj/
 /Mods/*/obj/
 /BuiltinMods/*/bin/
 /BuiltinMods/*/obj/
+
+# 本地自动化桥接（编辑器命令文件）
+/.agents-unity-bridge/

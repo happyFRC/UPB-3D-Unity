@@ -5325,12 +5325,7 @@ public class SandboxSceneController : MonoBehaviour {
 
     private void LoadSceneIntros() {
         _sceneIntros.Clear();
-        TextAsset asset = Resources.Load<TextAsset>("Data/Scenarios");
-        if (asset == null) return;
-
-        SceneIntroCatalog catalog = JsonUtility.FromJson<SceneIntroCatalog>(asset.text);
-        if (catalog?.scenes == null) return;
-        foreach (SceneIntro intro in catalog.scenes) {
+        foreach (SceneIntro intro in SandboxRegister.SceneIntros) {
             if (intro == null || string.IsNullOrEmpty(intro.id)) continue;
             _sceneIntros[intro.id] = intro;
         }

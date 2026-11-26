@@ -11,8 +11,10 @@ using UnityEngine;
 /// 复制整个 TemplateMod 文件夹、改名（文件夹名、主文件名、类名保持一致），
 /// 就可以开始写自己的模组。其它 .cs 会一起编译，但不能作为入口。
 /// </summary>
-public class TemplateMod : UPBMod {
-    public void Startup(UPBLogger logger) {
+public class TemplateMod : UPBMod
+{
+    public void Startup(UPBLogger logger)
+    {
         logger.info("模组已加载，这里可以初始化你自己的内容。");
     }
 }

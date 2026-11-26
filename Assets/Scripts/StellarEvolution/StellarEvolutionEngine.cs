@@ -1,3 +1,4 @@
+using System;
 using Unity.Mathematics;
 using UPB.SSE;
 
@@ -153,6 +154,7 @@ public static class StellarEvolutionEngine {
 }
 
 public class Spectrum {
+    public static Func<double, (float r, float g, float b)> CustomBlackbodyColor = null;
     public bool isDwarf = false;
     public string type;  // Y T L | M K G F A B O
     public int subtype; // 0~9
@@ -185,11 +187,15 @@ public class Spectrum {
 
     // 沙盘每帧要为 288 个表面斑块取色，原来每次都线性扫表 + 3 次 Substring/Convert，
     // 这里按 100K 一档缓存结果（表本身就是 100K 一档，取值完全相同）。
-    private static readonly (float r, float g, float b)[] ColorCache =
+    private static readonly (float r, float g, float b)[] _colorCache =
         new (float r, float g, float b)[512];
-    private static readonly bool[] ColorCacheValid = new bool[512];
+    private static readonly bool[] _colorCacheValid = new bool[512];
 
     public static (float r, float g, float b) GetBlackbodyColor(double temperature) {
+        if (CustomBlackbodyColor != null) {
+            return CustomBlackbodyColor(temperature);
+        }
+
         if (temperature >= 50000) {
             return (0.529f, 0.745f, 1.0f);
         }
@@ -204,15 +210,15 @@ public class Spectrum {
 
         int temp = (int)math.round(temperature / 100.0) * 100;
         int cacheIndex = temp / 100;
-        if (cacheIndex >= 0 && cacheIndex < ColorCache.Length &&
-            ColorCacheValid[cacheIndex]) {
-            return ColorCache[cacheIndex];
+        if (cacheIndex >= 0 && cacheIndex < _colorCache.Length &&
+            _colorCacheValid[cacheIndex]) {
+            return _colorCache[cacheIndex];
         }
 
         (float r, float g, float b) color = LookupBlackbodyColor(temp);
-        if (cacheIndex >= 0 && cacheIndex < ColorCache.Length) {
-            ColorCache[cacheIndex] = color;
-            ColorCacheValid[cacheIndex] = true;
+        if (cacheIndex >= 0 && cacheIndex < _colorCache.Length) {
+            _colorCache[cacheIndex] = color;
+            _colorCacheValid[cacheIndex] = true;
         }
         return color;
     }
@@ -229,8 +235,8 @@ public class Spectrum {
             }
         }
 
-        var last = entries[^1];
-        return (HexToR(last.Hex) / 255f, HexToG(last.Hex) / 255f, HexToB(last.Hex) / 255f);
+        var (_, Hex, _, _) = entries[^1];
+        return (HexToR(Hex) / 255f, HexToG(Hex) / 255f, HexToB(Hex) / 255f);
     }
 
     private static int HexToR(string hex) => System.Convert.ToInt32(hex.Substring(1, 2), 16);

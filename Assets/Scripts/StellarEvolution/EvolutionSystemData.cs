@@ -21,7 +21,7 @@ public class EvolutionPlanetData {
         : semiMajorAxisAu * EvolutionSystemDefaults.AuKm;
 }
 
-/// <summary>一个恒星系。保存到 Data/EvolutionSystems/[name].json。</summary>
+/// <summary>一个恒星系。内置的由 SandboxRegister 注册（BuiltinSandboxObjects）；玩家自建的仍可另存为 JSON。</summary>
 [Serializable]
 public class EvolutionSystemData {
     public string name;
@@ -37,32 +37,11 @@ public static class EvolutionSystemDefaults {
 
     public static string PlanetName(int index) => $"Planet {index + 1:00}";
 
+    /// <summary>默认太阳系：从 SandboxRegister 的注册表里取。</summary>
     public static EvolutionSystemData SolarSystem() {
-        return new EvolutionSystemData {
-            name = SolarSystemName,
-            planets = new List<EvolutionPlanetData> {
-                P("水星", 5.791e7, 0.2056, 0.50f, 0.50f, 0.50f),
-                P("金星", 1.082e8, 0.0068, 0.96f, 0.87f, 0.70f),
-                P("地球", 1.496e8, 0.0167, 0.53f, 0.81f, 0.92f),
-                P("火星", 2.279e8, 0.0934, 0.88f, 0.25f, 0.16f),
-                P("木星", 7.785e8, 0.0489, 0.55f, 0.35f, 0.20f),
-                P("土星", 1.433e9, 0.0565, 0.82f, 0.70f, 0.40f),
-                P("天王星", 2.872e9, 0.0457, 0.68f, 0.90f, 0.95f),
-                P("海王星", 4.495e9, 0.0113, 0.20f, 0.35f, 0.75f),
-            }
-        };
-    }
-
-    private static EvolutionPlanetData P(
-            string name, double aKm, double e, float r, float g, float b) {
-        return new EvolutionPlanetData {
-            name = name,
-            semiMajorAxisAu = aKm / AuKm,
-            semiMajorAxisKm = aKm,
-            eccentricity = e,
-            colorR = r,
-            colorG = g,
-            colorB = b
-        };
+        EvolutionSystemData system = SandboxRegister.FindEvolutionSystem(SolarSystemName);
+        if (system != null) return system;
+        EvolutionSystemData[] all = SandboxRegister.EvolutionSystems;
+        return all.Length > 0 ? all[0] : new EvolutionSystemData { name = SolarSystemName };
     }
 }

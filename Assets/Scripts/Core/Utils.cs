@@ -115,7 +115,7 @@ public static class Utils {
 
 
 public static class ColorDatabase {
-    public static readonly List<(int Temp, string Hex, double CIEx, double CIEy)> Entries = new List<(int, string, double, double)>();
+    public static readonly List<(int Temp, string Hex, double CIEx, double CIEy)> Entries = new();
 
     static ColorDatabase() {
         Entries.Add((800, "#ff4f00", 0.6813, 0.3179));

@@ -62,13 +62,28 @@ public class ModEntry {
 ///     icon.png
 ///     desc.json       ← name / author / version / description
 ///
-/// 所有模组**默认关闭**，开关存在 PlayerPrefs（UPB.Mod.Enabled.&lt;id&gt;），下次启动生效。
+/// 所有模组**默认关闭**，开关存在 UPB-data/mods.json（玩家数据目录，已 gitignore），下次启动生效。
 /// 同名时内置模组优先，玩家目录里的同名文件夹会被跳过。
 /// </summary>
 public class ModManager : MonoBehaviour {
     public static ModManager Instance { get; private set; }
 
     public string modsFolderName = "Mods";
+
+    /// <summary>按文件夹名找模组目录；没有返回 null。</summary>
+    public static string FolderOf(string id) {
+        if (Instance == null || string.IsNullOrEmpty(id)) return null;
+        foreach (ModEntry entry in Instance.Mods) {
+            if (entry != null && string.Equals(entry.id, id, StringComparison.OrdinalIgnoreCase)) {
+                return entry.folder;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>当前所有模组（没有实例时为空）。</summary>
+    public static IReadOnlyList<ModEntry> AllMods() =>
+        Instance != null ? Instance.Mods : Array.Empty<ModEntry>();
 
     public readonly List<ModEntry> Mods = new();
     public int FailedCount { get; private set; }
@@ -77,9 +92,83 @@ public class ModManager : MonoBehaviour {
     /// <summary>任意模组状态变化（开关、加载完成）时触发，模组面板据此刷新。</summary>
     public event Action Changed;
 
+    /// <summary>旧版开关记录（PlayerPrefs），只在迁移时读一次。</summary>
     private const string EnabledPrefPrefix = "UPB.Mod.Enabled.";
 
     private static List<MetadataReference> _references;
+
+    // ~~~ 开关记录 ~~~
+    // 存在 <数据根>/UPB-data/mods.json，跟着玩家数据一起被 .gitignore 掉。
+    private static readonly HashSet<string> _enabledIds = new(StringComparer.OrdinalIgnoreCase);
+    private static bool _stateLoaded;
+
+    private static string DataRoot {
+        get {
+#if UNITY_EDITOR
+            return Path.GetFullPath(Path.Combine(Application.dataPath, ".."));
+#elif UNITY_ANDROID
+            return Application.persistentDataPath;
+#else
+            return Path.GetDirectoryName(Application.dataPath);
+#endif
+        }
+    }
+
+    /// <summary>开关记录文件：UPB-data/mods.json。</summary>
+    public static string StatePath => Path.Combine(DataRoot, "UPB-data", "mods.json");
+
+    [Serializable]
+    private class ModStateData {
+        public List<string> enabled = new();
+    }
+
+    private static void LoadEnabledState() {
+        if (_stateLoaded) return;
+        _stateLoaded = true;
+
+        try {
+            if (!File.Exists(StatePath)) return;
+            ModStateData data = JsonUtility.FromJson<ModStateData>(File.ReadAllText(StatePath));
+            if (data?.enabled == null) return;
+            foreach (string id in data.enabled) {
+                if (!string.IsNullOrEmpty(id)) _enabledIds.Add(id);
+            }
+        } catch (Exception e) {
+            Debug.LogWarning($"[Mods] 读取开关记录失败: {e.Message}");
+        }
+    }
+
+    private static void SaveEnabledState() {
+        try {
+            string dir = Path.GetDirectoryName(StatePath);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+
+            ModStateData data = new() { enabled = new List<string>(_enabledIds) };
+            File.WriteAllText(StatePath, JsonUtility.ToJson(data, true));
+        } catch (Exception e) {
+            Debug.LogWarning($"[Mods] 保存开关记录失败: {e.Message}");
+        }
+    }
+
+    /// <summary>模组是否开启（默认关闭）。旧版 PlayerPrefs 记录会自动迁移过来。</summary>
+    public static bool IsEnabled(string id) {
+        LoadEnabledState();
+        if (_enabledIds.Contains(id)) return true;
+
+        string legacyKey = EnabledPrefPrefix + id;
+        if (PlayerPrefs.HasKey(legacyKey)) {
+            bool on = PlayerPrefs.GetInt(legacyKey, 0) != 0;
+            PlayerPrefs.DeleteKey(legacyKey);
+            PlayerPrefs.Save();
+            if (on) {
+                _enabledIds.Add(id);
+                SaveEnabledState();
+            }
+            return on;
+        }
+
+        return false;
+    }
 
     /// <summary>玩家的模组目录（与 exe 同级）。</summary>
     public string PlayerModsPath => Path.GetFullPath(
@@ -143,8 +232,10 @@ public class ModManager : MonoBehaviour {
     public void SetEnabled(ModEntry entry, bool enabled) {
         if (entry == null) return;
         entry.enabled = enabled;
-        PlayerPrefs.SetInt(EnabledPrefPrefix + entry.id, enabled ? 1 : 0);
-        PlayerPrefs.Save();
+
+        if (enabled) _enabledIds.Add(entry.id);
+        else _enabledIds.Remove(entry.id);
+        SaveEnabledState();
         Changed?.Invoke();
     }
 
@@ -229,14 +320,14 @@ public class ModManager : MonoBehaviour {
             folder = folder,
             isBuiltin = isBuiltin,
             displayName = id,
-            enabled = PlayerPrefs.GetInt(EnabledPrefPrefix + id, 0) != 0
+            enabled = IsEnabled(id)
         };
 
-        FileInfo descFile = new Resource("desc.json", id).GetFile();
-        if (descFile != null) {
+        string descPath = Path.Combine(folder, "desc.json");
+        if (File.Exists(descPath)) {
             try {
                 ModDescription desc = JsonUtility.FromJson<ModDescription>(
-                    File.ReadAllText(descFile.FullName));
+                    File.ReadAllText(descPath));
                 if (desc != null) {
                     if (!string.IsNullOrWhiteSpace(desc.name)) entry.displayName = desc.name.Trim();
                     entry.author = desc.author;
@@ -248,11 +339,11 @@ public class ModManager : MonoBehaviour {
             }
         }
 
-        FileInfo iconFile = new Resource("icon.png", id).GetFile();
-        if (iconFile != null) {
+        string iconPath = Path.Combine(folder, "icon.png");
+        if (File.Exists(iconPath)) {
             try {
                 Texture2D texture = new(2, 2);
-                if (texture.LoadImage(File.ReadAllBytes(iconFile.FullName))) entry.icon = texture;
+                if (texture.LoadImage(File.ReadAllBytes(iconPath))) entry.icon = texture;
                 else Debug.LogWarning($"[Mods] {id}: icon.png 读取失败");
             } catch (Exception e) {
                 Debug.LogWarning($"[Mods] {id}: icon.png 读取失败（{e.Message}）");
@@ -280,8 +371,8 @@ public class ModManager : MonoBehaviour {
         }
 
         // 主文件必须与文件夹同名（放在模组根目录）；没有就直接跳过，不编译。
-        FileInfo mainFile = new Resource(entry.id + ".cs", entry.id).GetFile();
-        if (mainFile == null) {
+        string mainFile = Path.GetFullPath(Path.Combine(entry.folder, entry.id + ".cs"));
+        if (!File.Exists(mainFile)) {
             entry.error = $"缺少主文件 {entry.id}.cs，已跳过";
             Debug.LogWarning($"[Mods] {entry.id}: {entry.error}");
             return LoadOutcome.Skipped;
@@ -290,16 +381,10 @@ public class ModManager : MonoBehaviour {
         try {
             SyntaxTree[] trees = sources
                 .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
-                .Select(f => {
-                    // 统一通过 Resource 定位文件（模组根目录 + 相对路径）。
-                    string relative = Path.GetRelativePath(entry.folder, f).Replace('\\', '/');
-                    FileInfo file = new Resource(relative, entry.id).GetFile();
-                    string code = File.ReadAllText(file != null ? file.FullName : f);
-                    return CSharpSyntaxTree.ParseText(
-                        code,
-                        CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest),
-                        path: f);
-                })
+                .Select(f => CSharpSyntaxTree.ParseText(
+                    File.ReadAllText(f),
+                    CSharpParseOptions.Default.WithLanguageVersion(LanguageVersion.Latest),
+                    path: f))
                 .ToArray();
 
             CSharpCompilation compilation = CSharpCompilation.Create(
@@ -324,7 +409,7 @@ public class ModManager : MonoBehaviour {
             Assembly assembly = Assembly.Load(stream.ToArray());
 
             // 只认主文件里定义的 UPBMod 实现，其它文件里的实现一律忽略。
-            Type entryType = FindEntryType(mainFile.FullName, compilation, assembly);
+            Type entryType = FindEntryType(mainFile, compilation, assembly);
             if (entryType == null) {
                 entry.error = $"主文件 {entry.id}.cs 里没有实现 UPBMod 的类，已跳过";
                 Debug.LogWarning($"[Mods] {entry.id}: {entry.error}");

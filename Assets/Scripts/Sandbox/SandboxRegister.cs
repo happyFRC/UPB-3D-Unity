@@ -18,6 +18,8 @@ public static class SandboxRegister {
     private static readonly List<PlanetData> _easterEggs = new();
     private static readonly List<StarData> _stars = new();
     private static readonly List<SandboxUnitCategory> _unitCategories = new();
+    private static readonly List<EvolutionSystemData> _evolutionSystems = new();
+    private static readonly List<SceneIntro> _sceneIntros = new();
 
     // 列表的数组快照，注册后置空，下次访问重新生成。
     private static PlanetData[] _planetCache;
@@ -26,6 +28,7 @@ public static class SandboxRegister {
     private static PlanetData[] _eggCache;
     private static StarData[] _starCache;
     private static SandboxUnitCategory[] _unitCache;
+    private static EvolutionSystemData[] _evolutionCache;
 
     private static bool _initialized;
     private static bool _initializing;
@@ -123,6 +126,72 @@ public static class SandboxRegister {
     }
 
     /// <summary>注册一个单位分类（temperature 这类带 offset 的也走同一个入口）。</summary>
+    /// <summary>全部场景介绍（沙盘内置场景的说明文字）。</summary>
+    public static SceneIntro[] SceneIntros {
+        get {
+            EnsureInitialized();
+            return _sceneIntros.ToArray();
+        }
+    }
+
+    /// <summary>注册一条场景介绍（按 id 对应 SandboxSaveSystem.Builtin*）。</summary>
+    public static void RegisterSceneIntro(SceneIntro intro) {
+        EnsureInitialized();
+        if (intro == null) throw new ArgumentNullException(nameof(intro));
+        if (string.IsNullOrEmpty(intro.id)) {
+            throw new ArgumentException("场景介绍的 id 不能为空", nameof(intro));
+        }
+
+        for (int i = 0; i < _sceneIntros.Count; i++) {
+            if (_sceneIntros[i] != null && _sceneIntros[i].id == intro.id) {
+                _sceneIntros[i] = intro;   // 同 id 覆盖
+                return;
+            }
+        }
+        _sceneIntros.Add(intro);
+    }
+
+    public static SceneIntro FindSceneIntro(string id) {
+        if (string.IsNullOrEmpty(id)) return null;
+        EnsureInitialized();
+        for (int i = 0; i < _sceneIntros.Count; i++) {
+            if (_sceneIntros[i] != null && _sceneIntros[i].id == id) return _sceneIntros[i];
+        }
+        return null;
+    }
+
+    /// <summary>全部内置恒星系（演化场景“选择恒星系”用）。</summary>
+    public static EvolutionSystemData[] EvolutionSystems {
+        get {
+            EnsureInitialized();
+            return _evolutionCache ??= _evolutionSystems.ToArray();
+        }
+    }
+
+    /// <summary>注册一个恒星系。重复调用没有副作用。</summary>
+    public static void RegisterEvolutionSystem(EvolutionSystemData system) {
+        EnsureInitialized();
+        if (system == null) throw new ArgumentNullException(nameof(system));
+        if (string.IsNullOrEmpty(system.name)) {
+            throw new ArgumentException("恒星系的 name 不能为空", nameof(system));
+        }
+
+        _evolutionSystems.Add(system);
+        _evolutionCache = null;
+    }
+
+    /// <summary>按名字找恒星系；没有返回 null。</summary>
+    public static EvolutionSystemData FindEvolutionSystem(string name) {
+        if (string.IsNullOrEmpty(name)) return null;
+        EnsureInitialized();
+        for (int i = 0; i < _evolutionSystems.Count; i++) {
+            if (_evolutionSystems[i] != null && _evolutionSystems[i].name == name) {
+                return _evolutionSystems[i];
+            }
+        }
+        return null;
+    }
+
     public static void RegisterUnitCategory(SandboxUnitCategory category) {
         EnsureInitialized();
         if (category == null) throw new ArgumentNullException(nameof(category));

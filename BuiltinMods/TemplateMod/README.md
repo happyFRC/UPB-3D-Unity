@@ -20,9 +20,10 @@
 ```
 MyMod/
 ├─ MyMod.cs         ← 主文件：与文件夹同名，必须有实现 UPBMod 的类，游戏只调它的 Startup
-├─ 其它.cs          ← 会一起编译，供主文件引用；这里即使有 UPBMod 实现也不会被调用
+├─ 其它.cs          ← 会一起编译（含子文件夹），供主文件引用；这里即使有 UPBMod 实现也不会被调用
 ├─ icon.png         模组图标（没有就用名字首字代替）
-└─ desc.json        描述：name / author / version / description
+├─ desc.json        描述：name / author / version / description
+└─ Resource/        资源目录（见下）：Resource/<名字空间>/...</n                 Resource/default/... 覆盖游戏内置文件
 ```
 
 ## 入口
@@ -41,26 +42,17 @@ public class MyMod : UPBMod {
 - 其它文件里的 `UPBMod` 实现一律忽略，但它们的类型可以被主文件引用（一起编译成一个程序集）；
 - 子文件夹里的 .cs 也会一起编译（`bin/`、`obj/` 除外）。
 
-## 模组资源（贴图 / 文本 / 任意文件）
+## 模组资源（Resource）
 
-`Resource(path, id)` 指向"某个根目录下的某个文件"：
-
-- `path`：相对路径，例如 `"Textures/Planet.png"`、`"Data/planets.json"`；
-- `id`：**模组文件夹名**（相对 `Mods/` 或 `BuiltinMods/`）；省略或写 `"default"` 就是内置 `Resources`。
+`Resource(path, id)` 是资源引用（类似 Minecraft 的 `ResourceLocation`），只描述指向哪个文件：
 
 ```csharp
-SandboxRegister.RegisterPlanet(new PlanetData {
-    name = "我的行星",
-    mass = 1.0, radius = 1.0, temperature = 288.0,
-    surface    = SandboxRegister.Resource("Textures/Planet.png", "MyMod"),
-    atmosphere = SandboxRegister.Resource("Textures/Clouds.png", "MyMod"),
-});
-
-// 它只是个引用，本身不做读取
-Resource icon = SandboxRegister.Resource("icon.png", "MyMod");
+surface = new Resource("Textures/Planet.png", "Test");   // → MyMod/Resource/Test/Textures/Planet.png
+surface = new Resource("Textures/Planets/Earth_Surface"); // → 内置 Resources
 ```
 
-- `Resource` 只保存 `id` + `path`（类似 Minecraft 的 `ResourceLocation`），不负责读文件；
-- 需要磁盘文件时用 `GetFile()`（返回 `FileInfo`，内置 Resources 资源没有实体文件，返回 `null`）；
-- 贴图由游戏在需要时加载：模组里的 png/jpg 直接读磁盘，内置走 `Resources`，找不到会回退并打警告；
-- 序列化成 `模组名:相对路径` 存进存档，读档时自动还原。
+- `id` 是**模组自己的名字空间**，对应模组目录下的 `Resource/<id>/`；
+- `id` 省略/`"default"` → 游戏内置 `Resources`；
+- 覆盖内置资源：把文件放在 `MyMod/Resource/default/<原相对路径>`，
+  例如 `Resource/default/Textures/Planets/Earth.png` 会覆盖 `Assets/Resources/Textures/Planets/Earth.png`；
+- 解析顺序：自己的模组 → 其它玩家模组 → 内置模组 → 内置 `Resources`。

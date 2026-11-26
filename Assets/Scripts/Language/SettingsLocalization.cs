@@ -40,7 +40,6 @@ namespace UPB.Localization
             // ---------- 主菜单 ----------
             new Pair("恒星演化", "Stellar Evolution"),
             new Pair("创建宇宙", "Create Universe"),
-            new Pair("行星球宇宙", "Universe of PlanetBall"),
             new Pair("退出游戏", "Quit Game"),
             new Pair("官方网站", "Official Website"),
             new Pair("版本：Test-V4.1", "Version: Test-V4.1"),

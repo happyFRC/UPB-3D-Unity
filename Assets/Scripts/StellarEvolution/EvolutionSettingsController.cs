@@ -25,7 +25,6 @@ public class EvolutionSettingsController : MonoBehaviour {
 
     private Button _openSettingsButton;
     private Button _newSystemButton;
-    private Button _selectSystemButton;
     private Button _returnEvolutionButton;
     private Button _saveReturnButton;
     private Button _nextPageButton;
@@ -41,7 +40,6 @@ public class EvolutionSettingsController : MonoBehaviour {
 
     private TMP_Text _newPlanetLabel;
     private TMP_Text _pageText;
-    private TMP_Text _selectButtonLabel;
     private TMP_Text _semiMajorLabel;
 
     private Toggle _orbitToggle;
@@ -103,7 +101,6 @@ public class EvolutionSettingsController : MonoBehaviour {
             _orbitRenderer.toggleShowOrbits = _orbitToggle;
         }
         _orbitRenderer?.SetSystem(_selectedSystem);
-        UpdateSelectButtonText();
 
         if (_addNewPageButton != null) _addNewPageButton.gameObject.SetActive(false);
         WireUi();
@@ -134,7 +131,6 @@ public class EvolutionSettingsController : MonoBehaviour {
 
         _openSettingsButton = FindButton("ButtonEvolutionSetting");
         _newSystemButton = FindButton("ButtonNewStellarSystem");
-        _selectSystemButton = FindButton("ButtonSelectStellarSystem");
         _returnEvolutionButton = FindButton("ButtonReturnEvolution");
         _saveReturnButton = FindButton("ButtonReturnToSettings");
 
@@ -154,9 +150,6 @@ public class EvolutionSettingsController : MonoBehaviour {
             "NewPlanetLabel");
         _pageText = FindDirectChild(_newSystemPanel != null ? _newSystemPanel.transform : null,
             "Text (TMP)")?.GetComponent<TMP_Text>();
-        _selectButtonLabel = _selectSystemButton != null
-            ? _selectSystemButton.GetComponentInChildren<TMP_Text>(true)
-            : null;
         _semiMajorLabel = FindText(_planetPanel != null ? _planetPanel.transform : null,
             "LabelSemiMajorAxis");
         if (_semiMajorLabel != null) _semiMajorLabel.text = "半长轴(AU)";
@@ -174,7 +167,6 @@ public class EvolutionSettingsController : MonoBehaviour {
     private void WireUi() {
         if (_openSettingsButton != null) _openSettingsButton.onClick.AddListener(OpenSettings);
         if (_newSystemButton != null) _newSystemButton.onClick.AddListener(OpenNewSystem);
-        if (_selectSystemButton != null) _selectSystemButton.onClick.AddListener(ChooseSystem);
         if (_returnEvolutionButton != null) _returnEvolutionButton.onClick.AddListener(CloseToEvolution);
         if (_saveReturnButton != null) _saveReturnButton.onClick.AddListener(SaveAndBack);
         if (_addNewPageButton != null) _addNewPageButton.onClick.AddListener(AddNewPage);
@@ -212,7 +204,6 @@ public class EvolutionSettingsController : MonoBehaviour {
         _newSystemPanel.SetActive(false);
         SetSettingsButtonsVisible(true);
         if (_addNewPageButton != null) _addNewPageButton.gameObject.SetActive(false);
-        UpdateSelectButtonText();
         ClearUiSelection();
     }
 
@@ -268,7 +259,6 @@ public class EvolutionSettingsController : MonoBehaviour {
 
     private void SetSettingsButtonsVisible(bool visible) {
         if (_newSystemButton != null) _newSystemButton.gameObject.SetActive(visible);
-        if (_selectSystemButton != null) _selectSystemButton.gameObject.SetActive(visible);
         if (_returnEvolutionButton != null) _returnEvolutionButton.gameObject.SetActive(visible);
     }
 
@@ -516,12 +506,15 @@ public class EvolutionSettingsController : MonoBehaviour {
 
     // ~~~ 保存 / 选择恒星系 ~~~ //
 
+    /// <summary>玩家自建恒星系的存放目录（玩家数据，随 UPB-data 一起被 gitignore）。</summary>
     private static string SystemsDirectory {
         get {
 #if UNITY_EDITOR
-            return Path.Combine(Application.dataPath, "Data", "EvolutionSystems");
+            return Path.Combine(
+                Path.GetFullPath(Path.Combine(Application.dataPath, "..")),
+                "UPB-data", "EvolutionSystems");
 #else
-            return Path.Combine(Application.persistentDataPath, "Data", "EvolutionSystems");
+            return Path.Combine(Application.persistentDataPath, "UPB-data", "EvolutionSystems");
 #endif
         }
     }
@@ -568,60 +561,16 @@ public class EvolutionSettingsController : MonoBehaviour {
         _selectedSystemName = system.name;
         _orbitRenderer?.SetSystem(system);
         if (_settingsOpen) _orbitRenderer?.SetVisible(false);
-        UpdateSelectButtonText();
 
         FloatingText.Show("已保存：" + system.name);
         BackToSettings();
     }
 
-    private void ChooseSystem() {
-        Directory.CreateDirectory(SystemsDirectory);
 
-#if UNITY_EDITOR
-        string path = UnityEditor.EditorUtility.OpenFilePanel(
-            "选择恒星系（双击 JSON）", SystemsDirectory, "json");
-        if (!string.IsNullOrEmpty(path)) LoadSystemFile(path);
-#else
-        Application.OpenURL("file://" + SystemsDirectory);
-        FloatingText.Show("请打开 Data/EvolutionSystems，双击 JSON 选择");
-#endif
-    }
 
-    private void LoadSystemFile(string path) {
-        try {
-            string json = File.ReadAllText(path);
-            EvolutionSystemData system = JsonUtility.FromJson<EvolutionSystemData>(json);
-            if (system == null || system.planets == null) {
-                FloatingText.Show("恒星系 JSON 无效");
-                return;
-            }
 
-            system.planets.RemoveAll(p => p == null || p.EffectiveSemiMajorAxisKm <= 0.0);
-            if (system.planets.Count == 0) {
-                FloatingText.Show("该恒星系没有有效行星");
-                return;
-            }
+    /// <summary>应用一个恒星系（内置的、或从 JSON 读出来的都走这里）。</summary>
 
-            if (string.IsNullOrWhiteSpace(system.name)) {
-                system.name = Path.GetFileNameWithoutExtension(path);
-            }
-
-            _selectedSystem = system;
-            _selectedSystemName = system.name;
-            _orbitRenderer?.SetSystem(system);
-            if (_settingsOpen) _orbitRenderer?.SetVisible(false);
-            UpdateSelectButtonText();
-            FloatingText.Show("已选择：" + system.name);
-        } catch (Exception e) {
-            FloatingText.Show("读取恒星系失败：" + e.Message);
-        }
-    }
-
-    private void UpdateSelectButtonText() {
-        if (_selectButtonLabel != null) {
-            _selectButtonLabel.text = "选择恒星系：" + _selectedSystemName;
-        }
-    }
 
     private static void ClearUiSelection() {
         if (EventSystem.current != null) {

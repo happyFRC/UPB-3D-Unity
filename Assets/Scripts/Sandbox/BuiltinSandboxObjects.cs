@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Unity.VisualScripting;
 
@@ -15,6 +16,8 @@ public static class BuiltinSandboxObjects {
         RegisterEasterEggs();
         RegisterStars();
         RegisterUnits();
+        RegisterSceneIntros();
+        RegisterEvolutionSystems();
     }
 
     /// <summary>八大行星 + 水瓶座一系 b/c/d + 心大星Ab（12 个）。</summary>
@@ -2202,5 +2205,96 @@ public static class BuiltinSandboxObjects {
             temp_review = temperature,
             rotationPeriodDays = rotationPeriodDays,
         });
+    }
+
+    /// <summary>场景介绍（沙盘打开内置场景时弹出的说明）。</summary>
+    private static void RegisterSceneIntros() {
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_solar",
+            title = "太阳系",
+            body = "太阳系以太阳为中心，八大行星沿各自的椭圆轨道公转。每颗行星的轨道倾角和升交点都不相同，所以轨道面并不是完全共面的：水星倾角 7.0°，冥王星 17.1°，阅神星更是达到 44°。\n\n内侧四颗是岩质行星（水星、金星、地球、火星），外侧四颗是气态与冰巨行星（木星、土星、天王星、海王星）。\n\n远处的柯伊伯带及更外面分布着矮行星：谷神星、冥王星、亡神星、创神星、阅神星、鸟神星、共工星，以及轨道极端扁长的赛德娜（偏心率 0.85，远日点超过 900 AU）。\n\n本场景所有天体都从远日点出发，赛德娜从近日点出发，初始速度按真实轨道根数计算。可以用下方的时间面板调整流速，观察轨道的演化；也可以拖动鼠标旋转视角，滚轮缩放。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_aquarius",
+            title = "水瓶座一星系",
+            body = "水瓶座一是本作作者虚构的一颗恒星，这个名字源于这位作者的bilibili名。虽然考虑到现实中有宝瓶座一（离珠三），但还是选择了这个名字（毕竟水瓶座是占星学术语，天文学用的很少，所以保留了这个名字，也还能区分的开）。它的质量是太阳的1.55倍。\n\n围绕它运行着三颗行星：\n\n水瓶座一b——内侧的岩质行星，轨道最靠近恒星；\n水瓶座一c——中间的冰质行星，表面覆盖着厚厚的冰层；\n水瓶座一d——最外侧的成员，在设定里它并不是原生的行星，而是被水瓶座一先后捕获的次褐矮星（sub-brown dwarf），质量约 8 倍木星质量。因为质量远大于普通行星，它的自转、热演化和表面纹理都保留了褐矮星的痕迹。\n\n这三颗行星的轨道互不相同，可以在场景里选中它们，查看质量、大气、能量收支等参数。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_antares",
+            title = "心大星行星系",
+            body = "这是本游戏的一位作者在 2017 年 11 月底自己的漫画里虚构的一个心宿二（心大星）行星系。\n\n作者本人当然清楚，这颗行星的大小和质量并不合理——2 倍太阳质量、半径 49 万公里，已经完全不是行星该有的样子。但当时设定的时候只是想着：毕竟是漫画，天马行空一点也不为过。于是这个设定就一直保留了下来，成了现在这颗“行星”。\n\n在心大星的设定里，心大星Ab 围绕心宿二（心大星A）主星运行，两者相距 1004.2 亿公里（约 671 AU），轨道离心率 0.057。\n\n这颗行星被标记为 SpecialPlanets：改它的质量不会把它变成气态巨行星或恒星，它会一直是漫画里那颗心大星Ab。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_moons_earth",
+            title = "地球的主要卫星",
+            body = "地球只有一颗天然卫星——月球。\n\n月球平均轨道半径 384,400 公里，轨道呈近圆形，由于潮汐锁定，它永远以同一面朝向地球。\n\n在场景里可以选中月球，查看它的质量、半径、表面温度和轨道参数。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_moons_jupiter",
+            title = "木星的主要卫星",
+            body = "木星拥有太阳系中最庞大的卫星系统，这里收录了创建面板里的四颗伽利略卫星：\n\n木卫一（Io）——离木星最近，火山活动最剧烈；\n木卫二（Europa）——冰壳之下可能存在液态海洋；\n木卫三（Ganymede）——太阳系最大的卫星，比水星还大；\n木卫四（Callisto）——表面布满古老撞击坑。\n\n四颗卫星的轨道半径从 42 万到 188 万公里不等，越往外公转周期越长。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_moons_saturn",
+            title = "土星的主要卫星",
+            body = "土星的卫星系统同样庞大，这里收录了创建面板里的六颗：\n\n土卫二（Enceladus）——南极喷出冰羽，是土星环物质的来源之一；\n土卫三（Tethys）——冰质卫星，表面有巨大的奥德修斯撞击坑；\n土卫四（Dione）——冰壳上分布着明亮的冰崖；\n土卫五（Rhea）——土星第二大卫星；\n土卫六（Titan）——拥有浓密大气和液态甲烷湖泊；\n土卫八（Iapetus）——两半球明暗分明，还有赤道脊。\n\n注意土卫六是唯一带大气层的，选中它可以看到大气质量与温室效应参数。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_moons_uranus",
+            title = "天王星的主要卫星",
+            body = "天王星的主要卫星都以莎士比亚、蒲柏作品中的角色命名，这里收录了五颗：\n\n天卫五（Miranda）——表面有高达 20 公里的悬崖；\n天卫一（Ariel）——冰质表面最年轻、最明亮；\n天卫二（Umbriel）——最暗的一颗；\n天卫三（Titania）——天王星最大的卫星；\n天卫四（Oberon）——布满古老撞击坑。\n\n它们的轨道都位于天王星赤道面附近，而天王星自转轴几乎躺倒，所以整个卫星系统是斜着绕行的。",
+        });
+
+        SandboxRegister.RegisterSceneIntro(new SceneIntro {
+            id = "default_moons_neptune",
+            title = "海王星的主要卫星",
+            body = "海王星的卫星系统里，最特别的是海卫一（Triton）。\n\n海卫一轨道半径约 354,759 公里，但它是一颗逆行卫星——公转方向与海王星自转相反，通常认为它是被海王星捕获的柯伊伯带天体。它的表面温度只有约 38 K，却仍有稀薄的氮气大气和冰火山活动。\n\n场景里可以选中它，观察逆行轨道与极低表面温度的组合。",
+        });
+
+    }
+
+    /// <summary>内置恒星系（演化场景里“选择恒星系”的列表）。值与原来 Data/EvolutionSystems 的 JSON 一致。</summary>
+    private static void RegisterEvolutionSystems() {
+        SandboxRegister.RegisterEvolutionSystem(new EvolutionSystemData {
+            name = "太阳系",
+            planets = new List<EvolutionPlanetData> {
+                Orbit("水星", 0.387104, 57910000.0, 0.2056, 0.75f, 0.75f, 0.75f),
+                Orbit("金星", 0.723272, 108200000.0, 0.0068, 1.0f, 0.82f, 0.45f),
+                Orbit("地球", 1.000014, 149600000.0, 0.0167, 0.25f, 0.65f, 1.0f),
+                Orbit("火星", 1.523417, 227900000.0, 0.0934, 1.0f, 0.35f, 0.2f),
+                Orbit("木星", 5.203951, 778500000.0, 0.0489, 0.55f, 0.35f, 0.2f),
+                Orbit("土星", 9.579013, 1433000000.0, 0.0565, 1.0f, 0.85f, 0.5f),
+                Orbit("天王星", 19.198134, 2872000000.0, 0.0457, 0.45f, 0.9f, 0.95f),
+                Orbit("海王星", 30.047219, 4495000000.0, 0.0113, 0.25f, 0.45f, 1.0f),
+            }
+        });
+
+        SandboxRegister.RegisterEvolutionSystem(new EvolutionSystemData {
+            name = "水瓶座一系",
+            planets = new List<EvolutionPlanetData> {
+                Orbit("Planet 01", 3.01, 450289590.807, 0.024, 0.7843137f, 1.0f, 0.7843137f),
+                Orbit("Planet 02", 5.07, 758461204.449, 0.016, 0.1960784f, 0.1960784f, 0.3921569f),
+                Orbit("Planet 03", 81.8, 12237105823.26, 0.534, 1.0f, 0.5019608f, 0.0f),
+            }
+        });
+    }
+
+    private static EvolutionPlanetData Orbit(string name, double au, double km, double eccentricity,
+            float r, float g, float b) {
+        return new EvolutionPlanetData {
+            name = name,
+            semiMajorAxisAu = au,
+            semiMajorAxisKm = km,
+            eccentricity = eccentricity,
+            colorR = r,
+            colorG = g,
+            colorB = b
+        };
     }
 }

@@ -2,17 +2,12 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>场景介绍数据（Resources/Data/Scenarios.json）。</summary>
+/// <summary>场景介绍数据（由 SandboxRegister.RegisterSceneIntro 注册）。</summary>
 [System.Serializable]
 public class SceneIntro {
     public string id;
     public string title;
     public string body;
-}
-
-[System.Serializable]
-public class SceneIntroCatalog {
-    public SceneIntro[] scenes;
 }
 
 /// <summary>
