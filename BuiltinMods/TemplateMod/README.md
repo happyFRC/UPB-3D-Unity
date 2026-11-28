@@ -30,9 +30,8 @@ MyMod/
 
 ```csharp
 public class MyMod : UPBMod {
-    public void Startup(UPBLogger logger) {
-        logger.info("模组已加载");      // 输出 [显示名 INFO] ...
-        // logger.warn / logger.err / logger.floatText(s) / logger.floatText(s, color)
+    public void Startup(UPBModInstance instance) {
+        instance.logger.info("模组已加载");      // 输出 [显示名 INFO] ...
     }
 }
 ```
@@ -44,7 +43,7 @@ public class MyMod : UPBMod {
 
 ## 模组资源（Resource）
 
-`Resource(path, id)` 是资源引用（类似 Minecraft 的 `ResourceLocation`），只描述指向哪个文件：
+`Resource(path, id)` 是资源引用，只描述指向哪个文件：
 
 ```csharp
 surface = new Resource("Textures/Planet.png", "Test");   // → MyMod/Resource/Test/Textures/Planet.png

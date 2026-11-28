@@ -154,7 +154,7 @@ public class ModPanel : MonoBehaviour {
             return;
         }
 
-        foreach (ModEntry entry in _manager.Mods) {
+        foreach (UPBModEntry entry in _manager.Mods) {
             BuildRow(entry);
         }
     }
@@ -164,7 +164,7 @@ public class ModPanel : MonoBehaviour {
         label.gameObject.AddComponent<LayoutElement>().preferredHeight = height;
     }
 
-    private void BuildRow(ModEntry entry) {
+    private void BuildRow(UPBModEntry entry) {
         RectTransform row = NewRect("Mod_" + entry.id, _content);
         row.gameObject.AddComponent<LayoutElement>().preferredHeight = 104f;
         Image rowImage = row.gameObject.AddComponent<Image>();
@@ -227,7 +227,7 @@ public class ModPanel : MonoBehaviour {
             entry.enabled ? OnColor : OffColor, 24f);
         Anchor(toggle.GetComponent<RectTransform>(), new Vector2(1f, 0.5f), new Vector2(1f, 0.5f),
             new Vector2(-18f, 0f), new Vector2(150f, 54f));
-        ModEntry captured = entry;
+        UPBModEntry captured = entry;
         toggle.onClick.AddListener(() => {
             if (_manager == null) return;
             _manager.SetEnabled(captured, !captured.enabled);
@@ -235,7 +235,7 @@ public class ModPanel : MonoBehaviour {
         });
     }
 
-    private static string BuildMeta(ModEntry entry) {
+    private static string BuildMeta(UPBModEntry entry) {
         string author = string.IsNullOrWhiteSpace(entry.author) ? "未知作者" : entry.author.Trim();
         string version = string.IsNullOrWhiteSpace(entry.version) ? "v1.0" : entry.version.Trim();
         string meta = $"{author}   ·   {version}   ·   {entry.StateText}";

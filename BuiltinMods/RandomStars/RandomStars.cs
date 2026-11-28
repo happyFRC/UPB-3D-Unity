@@ -16,7 +16,7 @@ public class RandomStars : UPBMod
         });
     }
 
-    public void Startup(UPBLogger logger)
+    public void Startup(UPBModInstance instance)
     {
         System.Random random = new();
         for (int i = 0; i < 1000; i++)

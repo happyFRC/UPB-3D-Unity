@@ -27,7 +27,7 @@ public enum ModLoadState {
 }
 
 /// <summary>一个模组的运行时信息（目录名、描述、图标、开关状态、加载结果）。</summary>
-public class ModEntry {
+public class UPBModEntry {
     public string id;                 // 文件夹名，作为唯一标识
     public string folder;             // 绝对路径
     public bool isBuiltin;            // 来自 StreamingAssets 的内置模组
@@ -73,7 +73,7 @@ public class ModManager : MonoBehaviour {
     /// <summary>按文件夹名找模组目录；没有返回 null。</summary>
     public static string FolderOf(string id) {
         if (Instance == null || string.IsNullOrEmpty(id)) return null;
-        foreach (ModEntry entry in Instance.Mods) {
+        foreach (UPBModEntry entry in Instance.Mods) {
             if (entry != null && string.Equals(entry.id, id, StringComparison.OrdinalIgnoreCase)) {
                 return entry.folder;
             }
@@ -82,10 +82,10 @@ public class ModManager : MonoBehaviour {
     }
 
     /// <summary>当前所有模组（没有实例时为空）。</summary>
-    public static IReadOnlyList<ModEntry> AllMods() =>
-        Instance != null ? Instance.Mods : Array.Empty<ModEntry>();
+    public static IReadOnlyList<UPBModEntry> AllMods() =>
+        Instance != null ? Instance.Mods : Array.Empty<UPBModEntry>();
 
-    public readonly List<ModEntry> Mods = new();
+    public readonly List<UPBModEntry> Mods = new();
     public int FailedCount { get; private set; }
     public bool Loaded { get; private set; }
 
@@ -212,7 +212,7 @@ public class ModManager : MonoBehaviour {
     }
 
     /// <summary>开关模组（下次启动生效）。</summary>
-    public void SetEnabled(ModEntry entry, bool enabled) {
+    public void SetEnabled(UPBModEntry entry, bool enabled) {
         if (entry == null) return;
         entry.enabled = enabled;
 
@@ -260,7 +260,7 @@ public class ModManager : MonoBehaviour {
 
         foreach (string folder in Directory.GetDirectories(root)
                      .OrderBy(Path.GetFileName, StringComparer.OrdinalIgnoreCase)) {
-            ModEntry entry = CreateEntry(folder, isBuiltin);
+            UPBModEntry entry = CreateEntry(folder, isBuiltin);
             if (entry == null) continue;
 
             if (Mods.Any(existing => string.Equals(existing.id, entry.id, StringComparison.OrdinalIgnoreCase))) {
@@ -294,11 +294,11 @@ public class ModManager : MonoBehaviour {
         }
     }
 
-    private ModEntry CreateEntry(string folder, bool isBuiltin) {
+    private UPBModEntry CreateEntry(string folder, bool isBuiltin) {
         string id = Path.GetFileName(folder);
         if (string.IsNullOrEmpty(id)) return null;
 
-        ModEntry entry = new() {
+        UPBModEntry entry = new() {
             id = id,
             folder = folder,
             isBuiltin = isBuiltin,
@@ -342,7 +342,7 @@ public class ModManager : MonoBehaviour {
         Skipped
     }
 
-    private LoadOutcome TryLoad(ModEntry entry, List<MetadataReference> references) {
+    private LoadOutcome TryLoad(UPBModEntry entry, List<MetadataReference> references) {
         // 子文件夹里的 .cs 也一起编译（bin/obj 是 IDE 产物，跳过）。
         string[] sources = Directory.GetFiles(entry.folder, "*.cs", SearchOption.AllDirectories)
             .Where(file => !IsBuildArtifact(entry.folder, file))

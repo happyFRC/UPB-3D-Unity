@@ -13,8 +13,8 @@ using UnityEngine;
 /// </summary>
 public class TemplateMod : UPBMod
 {
-    public void Startup(UPBLogger logger)
+    public void Startup(UPBModInstance instance)
     {
-        logger.info("模组已加载，这里可以初始化你自己的内容。");
+        instance.logger.info("模组已加载，这里可以初始化你自己的内容。");
     }
 }

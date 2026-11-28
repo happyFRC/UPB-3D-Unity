@@ -52,6 +52,9 @@ public static class StellarEvolutionEngine {
     }
 
     public static void InitSSE() {
+        foreach (var ev in UPBEventBus.BeforeInitSSEEvent) {
+            ev();
+        }
         SE_Mass = math.clamp(SE_Mass, MassMin, MassMax);
         SE_Metal = math.clamp(SE_Metal, 1e-4, 0.03);
 
@@ -70,7 +73,7 @@ public static class StellarEvolutionEngine {
         }
 
         // 1. 裁剪终点
-        double lastTime = track.points[track.points.Count - 1].time;
+        double lastTime = track.points[^1].time;
         if (end > 0 && end < lastTime * 0.99) {
             int keep = track.points.Count;
             while (keep > 1 && track.points[keep - 1].time > end) keep--;
@@ -93,16 +96,35 @@ public static class StellarEvolutionEngine {
         _sseIndex = 0;
         SE_Tau = track.t_ms;
         ApplySSEPoint(0);
-        SE_End = track.points[track.points.Count - 1].time;
+        SE_End = track.points[^1].time;
+        foreach (var ev in UPBEventBus.AfterInitSSEEvent) {
+            ev();
+        }
     }
 
     public static void EvolveStep() {
-        if (!HasNextStep()) return;
-        ApplySSEPoint(++_sseIndex);
+        bool shouldContinue = HasNextStep();
+        foreach (var ev in UPBEventBus.OnEvolveStepEvent) {
+            EventResult res = ev(_sseIndex);
+            if (res.Ret) {
+                shouldContinue = false;
+            }
+        }
+        if (!shouldContinue) {
+            return;
+        } else {
+            _sseIndex++;
+        }
+        ApplySSEPoint(_sseIndex);
     }
 
     private static void ApplySSEPoint(int i) {
         TrackPoint p = SSE_Track.points[i];
+        foreach (var ev in UPBEventBus.BeforeApplySSEPointEvent) {
+            if (ev((p, i)).Ret) {
+                return;
+            }
+        }
         SE_Year = p.time;
         SE_Luminosity = math.max(p.luminosity, 1e-8);
         SE_Radius = math.max(p.radius, 1e-6);
@@ -112,6 +134,9 @@ public static class StellarEvolutionEngine {
         SE_Phase = p.phase;
         SE_PhaseName = SseEngine.phase_name_cn(p.phase);
         SE_Spectrum = Spectrum.GetSpectrum(SE_Radius, p.mass, SE_TemperatureSurf);
+        foreach (var ev in UPBEventBus.AfterApplySSEPointEvent) {
+            ev((p, i));
+        }
     }
 
     public static double GetMainSequenceLifespan(double mass, double metallicity) {
@@ -128,6 +153,9 @@ public static class StellarEvolutionEngine {
     }
 
     public static double GetLifespan(double mass, double metallicity) {
+        if (UPBEventBus.GetLifespanEvent != null) {
+            return UPBEventBus.GetLifespanEvent((mass, metallicity));
+        }
         mass = math.clamp(mass, MassMin, MassMax);
         metallicity = math.clamp(metallicity, 1e-4, 0.03);
         if (mass == _lifeMass && metallicity == _lifeZ) return _lifeValue;
@@ -154,26 +182,31 @@ public static class StellarEvolutionEngine {
 }
 
 public class Spectrum {
-    public static Func<double, (float r, float g, float b)> CustomBlackbodyColor = null;
     public bool isDwarf = false;
     public string type;  // Y T L | M K G F A B O
     public int subtype; // 0~9
     public string luminosity; // I~V
     public Spectrum(string type, int subtype, string luminosity) {
+        foreach (var ev in UPBEventBus.OnInitSpectrum) {
+            if (ev((this, type, subtype, luminosity)).Ret) {
+                return;
+            }
+        }
+        
         if (type != "Y" && type != "T" && type != "L" &&
             type != "M" && type != "K" && type != "G" &&
             type != "F" && type != "A" && type != "B" &&
             type != "O") {
-            throw new System.Exception("Unknown Spectrum Type: " + type);
+            throw new Exception("Unknown Spectrum Type: " + type);
         }
 
         if (subtype < 0 || subtype > 9) {
-            throw new System.Exception("Unknown Spectrum Subtype: " + subtype + " (Should in [0, 9])");
+            throw new Exception("Unknown Spectrum Subtype: " + subtype + " (Should in [0, 9])");
         }
 
         if (luminosity != "I" && luminosity != "II" && luminosity != "III" &&
             luminosity != "IV" && luminosity != "V") {
-            throw new System.Exception("Unknown Spectrum Luminosity: " + luminosity + " (Should in {I, II, III, IV, V})");
+            throw new Exception("Unknown Spectrum Luminosity: " + luminosity + " (Should in {I, II, III, IV, V})");
         }
 
         if (type == "Y" || type == "T" || type == "L") {
@@ -192,8 +225,8 @@ public class Spectrum {
     private static readonly bool[] _colorCacheValid = new bool[512];
 
     public static (float r, float g, float b) GetBlackbodyColor(double temperature) {
-        if (CustomBlackbodyColor != null) {
-            return CustomBlackbodyColor(temperature);
+        if (UPBEventBus.GetBlackbodyColorEvent != null) {
+            return UPBEventBus.GetBlackbodyColorEvent(temperature);
         }
 
         if (temperature >= 50000) {

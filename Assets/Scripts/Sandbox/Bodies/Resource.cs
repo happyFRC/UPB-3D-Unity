@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 
 /// <summary>
-/// 资源引用（类似 Minecraft 的 ResourceLocation）：一个名字空间 + 一个相对路径。
+/// 资源引用：一个名字空间 + 一个相对路径。
 /// 只描述"指向哪个文件"，不读取内容。
 ///
 /// 解析规则（模组 A 里写代码时）：
@@ -92,7 +92,7 @@ public sealed class Resource : IEquatable<Resource> {
             yield break;
         }
 
-        foreach (ModEntry entry in ModManager.AllMods()) {
+        foreach (UPBModEntry entry in ModManager.AllMods()) {
             if (entry == null || entry.id == owner || string.IsNullOrEmpty(entry.folder)) continue;
             yield return entry.folder;
         }
