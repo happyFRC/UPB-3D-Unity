@@ -92,9 +92,6 @@ public class ModManager : MonoBehaviour {
     /// <summary>任意模组状态变化（开关、加载完成）时触发，模组面板据此刷新。</summary>
     public event Action Changed;
 
-    /// <summary>旧版开关记录（PlayerPrefs），只在迁移时读一次。</summary>
-    private const string EnabledPrefPrefix = "UPB.Mod.Enabled.";
-
     private static List<MetadataReference> _references;
 
     // ~~~ 开关记录 ~~~
@@ -150,24 +147,10 @@ public class ModManager : MonoBehaviour {
         }
     }
 
-    /// <summary>模组是否开启（默认关闭）。旧版 PlayerPrefs 记录会自动迁移过来。</summary>
+    /// <summary>模组是否开启（默认关闭）。</summary>
     public static bool IsEnabled(string id) {
         LoadEnabledState();
-        if (_enabledIds.Contains(id)) return true;
-
-        string legacyKey = EnabledPrefPrefix + id;
-        if (PlayerPrefs.HasKey(legacyKey)) {
-            bool on = PlayerPrefs.GetInt(legacyKey, 0) != 0;
-            PlayerPrefs.DeleteKey(legacyKey);
-            PlayerPrefs.Save();
-            if (on) {
-                _enabledIds.Add(id);
-                SaveEnabledState();
-            }
-            return on;
-        }
-
-        return false;
+        return _enabledIds.Contains(id);
     }
 
     /// <summary>玩家的模组目录（与 exe 同级）。</summary>
@@ -417,7 +400,7 @@ public class ModManager : MonoBehaviour {
             }
 
             entry.instance = (UPBMod)Activator.CreateInstance(entryType);
-            entry.instance.Startup(new UPBLogger(entry.displayName));
+            entry.instance.Startup(new UPBModInstance(entry));
             Debug.Log($"[Mods] 已加载 {(entry.isBuiltin ? "[内置] " : "")}{entry.displayName}（{entryType.Name}）");
             return LoadOutcome.Ok;
         } catch (Exception e) {
