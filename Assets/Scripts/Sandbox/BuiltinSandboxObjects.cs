@@ -266,7 +266,7 @@ public static class BuiltinSandboxObjects {
             trailColorB = 0.52f,
         });
         SandboxRegister.RegisterDwarfPlanet(new PlanetData {
-            name = "阅神星",
+            name = "阋神星",
             temperature = 42.0,
             mass = 0.00278,
             radius = 0.182546,
@@ -2109,6 +2109,7 @@ public static class BuiltinSandboxObjects {
                 SandboxUnits.NewUnit("AU", 149597870700.0),
                 SandboxUnits.NewUnit("ly", 9.4607304725808E+15),
                 SandboxUnits.NewUnit("pc", 30856775814913672.0),
+                SandboxUnits.NewUnit("Mpc", 3.085677581491367E+22),
             }.Concat(SandboxRegister.StandardUnits("m", 1.0, false, true)).ToArray()
         });
         SandboxRegister.RegisterUnitCategory(new SandboxUnitCategory {
@@ -2212,7 +2213,7 @@ public static class BuiltinSandboxObjects {
         SandboxRegister.RegisterSceneIntro(new SceneIntro {
             id = "default_solar",
             title = "太阳系",
-            body = "太阳系以太阳为中心，八大行星沿各自的椭圆轨道公转。每颗行星的轨道倾角和升交点都不相同，所以轨道面并不是完全共面的：水星倾角 7.0°，冥王星 17.1°，阅神星更是达到 44°。\n\n内侧四颗是岩质行星（水星、金星、地球、火星），外侧四颗是气态与冰巨行星（木星、土星、天王星、海王星）。\n\n远处的柯伊伯带及更外面分布着矮行星：谷神星、冥王星、亡神星、创神星、阅神星、鸟神星、共工星，以及轨道极端扁长的赛德娜（偏心率 0.85，远日点超过 900 AU）。\n\n本场景所有天体都从远日点出发，赛德娜从近日点出发，初始速度按真实轨道根数计算。可以用下方的时间面板调整流速，观察轨道的演化；也可以拖动鼠标旋转视角，滚轮缩放。",
+            body = "太阳系以太阳为中心，八大行星沿各自的椭圆轨道公转。每颗行星的轨道倾角和升交点都不相同，所以轨道面并不是完全共面的：水星倾角 7.0°，冥王星 17.1°，阋神星更是达到 44°。\n\n内侧四颗是岩质行星（水星、金星、地球、火星），外侧四颗是气态与冰巨行星（木星、土星、天王星、海王星）。\n\n远处的柯伊伯带及更外面分布着矮行星：谷神星、冥王星、亡神星、创神星、阋神星、鸟神星、共工星，以及轨道极端扁长的赛德娜（偏心率 0.85，远日点超过 900 AU）。\n\n本场景所有天体都从远日点出发，赛德娜从近日点出发，初始速度按真实轨道根数计算。可以用下方的时间面板调整流速，观察轨道的演化；也可以拖动鼠标旋转视角，滚轮缩放。",
         });
 
         SandboxRegister.RegisterSceneIntro(new SceneIntro {

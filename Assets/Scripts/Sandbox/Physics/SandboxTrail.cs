@@ -24,6 +24,10 @@ public class SandboxTrail : MonoBehaviour {
     private LineRenderer _orbitLine;
     private Gradient _gradient;
     private GradientColorKey[] _colorKeys;
+    private Gradient _orbitGradient;
+    private GradientColorKey[] _orbitColorKeys;
+    private readonly GradientAlphaKey[] _orbitAlphaKeys = new GradientAlphaKey[2];
+    private float _lastOrbitAlpha = float.NaN;
     private readonly List<TrailPoint> _points = new();
     private float _lastSampleTime = -1f;
 
@@ -147,20 +151,19 @@ public class SandboxTrail : MonoBehaviour {
     private void AddPoint(float time) {
         _points.Add(new TrailPoint {
             time = time,
-            logical = new SandboxDVec3(
-                _body.positionM.x / MetersPerUnit,
-                _body.positionM.y / MetersPerUnit,
-                _body.positionM.z / MetersPerUnit)
+            logical = CurrentLogicalPosition()
         });
         _lastSampleTime = time;
 
         float cutoff = time - TrailSeconds;
-        while (_points.Count > 0 && _points[0].time < cutoff) {
-            _points.RemoveAt(0);
+        int firstKept = 0;
+        while (firstKept < _points.Count && _points[firstKept].time < cutoff) {
+            firstKept++;
         }
+        if (firstKept > 0) _points.RemoveRange(0, firstKept);
     }
 
-    private void Update() {
+    private void LateUpdate() {
         if (_body == null || !_body.alive || _line == null) {
             if (_line != null) _line.enabled = false;
             return;
@@ -172,9 +175,9 @@ public class SandboxTrail : MonoBehaviour {
         }
 
         UpdateScreenWidth();
-        UpdateOrbitLine();
-
         float orbitFade = ComputeOrbitFade();
+        UpdateOrbitLine(orbitFade);
+
         float alpha = Visible ? orbitFade : 0f;
         _line.enabled = alpha > 0.001f;
         if (!_line.enabled) return;
@@ -187,16 +190,32 @@ public class SandboxTrail : MonoBehaviour {
             _line.colorGradient = _gradient;
         }
 
-        _line.positionCount = _points.Count;
+        // 历史点按固定间隔采样以控制数量，但最新端点必须逐帧贴合天体。
+        // 否则高时间倍率下端点到下个采样点才更新，会在画面里周期性跳动。
+        SandboxDVec3 head = CurrentLogicalPosition();
+        bool appendHead = ShouldAppendHead(head);
+        int positionCount = _points.Count + (appendHead ? 1 : 0);
+        _line.positionCount = positionCount;
         for (int i = 0; i < _points.Count; i++) {
             SandboxDVec3 p = _points[i].logical;
             _line.SetPosition(i, SandboxFloatingOrigin.ToRender(p.x, p.y, p.z));
         }
+        if (appendHead) {
+            _line.SetPosition(_points.Count,
+                SandboxFloatingOrigin.ToRender(head.x, head.y, head.z));
+        }
     }
 
-    private void UpdateOrbitLine() {
+    private void UpdateOrbitLine(float orbitFade) {
         if (_body == null || _body.planet == null || !_body.isOrbiting ||
             _body.orbitTarget == null || !OrbitVisible) {
+            if (_orbitLine != null) _orbitLine.enabled = false;
+            return;
+        }
+
+        // 缩放到很远时轨道直径只有亚像素，宽度却按屏幕像素换算，会变成一团；
+        // 和轨迹使用同一套连续淡出，避免距离在阈值附近时整条线反复闪隐。
+        if (orbitFade <= 0.001f) {
             if (_orbitLine != null) _orbitLine.enabled = false;
             return;
         }
@@ -234,12 +253,14 @@ public class SandboxTrail : MonoBehaviour {
         if (_orbitLine == null) CreateOrbitLine();
         if (_orbitLine == null) return;
 
-        Color color = _body.trailColor;
-        color.a = 0.65f;
-        Gradient gradient = new();
-        gradient.SetKeys(new[] { new GradientColorKey(color, 0f), new GradientColorKey(color, 1f) },
-            new[] { new GradientAlphaKey(0.65f, 0f), new GradientAlphaKey(0.65f, 1f) });
-        _orbitLine.colorGradient = gradient;
+        float orbitAlpha = 0.65f * orbitFade;
+        if (!Mathf.Approximately(orbitAlpha, _lastOrbitAlpha)) {
+            _lastOrbitAlpha = orbitAlpha;
+            _orbitAlphaKeys[0] = new GradientAlphaKey(orbitAlpha, 0f);
+            _orbitAlphaKeys[1] = new GradientAlphaKey(orbitAlpha, 1f);
+            _orbitGradient.SetKeys(_orbitColorKeys, _orbitAlphaKeys);
+            _orbitLine.colorGradient = _orbitGradient;
+        }
 
         // 轨道是真实 3D 物体（位置、深度、遮挡都按世界空间），
         // 但线宽按屏幕像素换算，让它看起来始终是同样粗细。
@@ -286,6 +307,36 @@ public class SandboxTrail : MonoBehaviour {
         if (shader == null) shader = Shader.Find("Sprites/Default");
         Material material = new(shader) { name = "OrbitMaterial", renderQueue = 3000 };
         _orbitLine.material = material;
+
+        Color color = _body != null ? _body.trailColor : Color.white;
+        color.a = 1f;
+        _orbitColorKeys = new[] {
+            new GradientColorKey(color, 0f),
+            new GradientColorKey(color, 1f)
+        };
+        _orbitGradient = new Gradient();
+        _orbitGradient.SetKeys(
+            _orbitColorKeys,
+            new[] { new GradientAlphaKey(0.65f, 0f), new GradientAlphaKey(0.65f, 1f) });
+        _orbitLine.colorGradient = _orbitGradient;
+        _lastOrbitAlpha = 0.65f;
+    }
+
+    private SandboxDVec3 CurrentLogicalPosition() => new(
+        _body.positionM.x / MetersPerUnit,
+        _body.positionM.y / MetersPerUnit,
+        _body.positionM.z / MetersPerUnit);
+
+    /// <summary>
+    /// 当前帧的天体位置是否已经明显偏离最后一个历史采样点。
+    /// 接近重合时不再追加退化线段，避免线宽计算和透明叠画出噪点。
+    /// </summary>
+    private bool ShouldAppendHead(SandboxDVec3 head) {
+        if (_points.Count == 0) return true;
+        SandboxDVec3 last = _points[_points.Count - 1].logical;
+        Vector3 a = SandboxFloatingOrigin.ToRender(last.x, last.y, last.z);
+        Vector3 b = SandboxFloatingOrigin.ToRender(head.x, head.y, head.z);
+        return (b - a).sqrMagnitude > 1e-12f;
     }
 
     private static SandboxDVec3 Cross(SandboxDVec3 a, SandboxDVec3 b) =>
@@ -329,7 +380,8 @@ public class SandboxTrail : MonoBehaviour {
         else if (_body.fragment != null) visual = _body.fragment.transform;
         if (visual == null) return 1f;
 
-        double diameterUnits = 2.0 * _body.orbitRadiusM / MetersPerUnit;
+        double diameterUnits = 2.0 * _body.orbitRadiusM / MetersPerUnit *
+                               SandboxWorldScale.Scale;
         float fadeStart = (float)(10.0 * diameterUnits);
         float fadeEnd = Mathf.Max(fadeStart * 2f, fadeStart + 1e-4f);
         float distance = Vector3.Distance(camera.transform.position, visual.position);

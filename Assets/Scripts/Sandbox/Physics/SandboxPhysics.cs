@@ -1165,14 +1165,13 @@ public static class SandboxPhysicsSystem {
 
             GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = donor.name + (isMist ? "_雾团_" : "_碎块_") + i;
-            go.transform.localScale = Vector3.one *
-                (float)(radius * 2.0 / MetersPerUnit);
             Collider collider = go.GetComponent<Collider>();
             if (collider != null) UnityEngine.Object.Destroy(collider);
 
             SandboxFragment fragment = go.AddComponent<SandboxFragment>();
             fragment.isMist = isMist;
             fragment.body = null;
+            fragment.visualDiameter = radius * 2.0 / MetersPerUnit;
             fragment.SetLogicalPosition(position.x / MetersPerUnit,
                 position.y / MetersPerUnit, position.z / MetersPerUnit);
 

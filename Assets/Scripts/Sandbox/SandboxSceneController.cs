@@ -352,6 +352,7 @@ public class SandboxSceneController : MonoBehaviour {
     private void Start() {
         Instance = this;
         SandboxFloatingOrigin.Reset();
+        SandboxWorldScale.Reset();
         SandboxPhysicsSystem.Reset();
         _camera = Camera.main;
         if (_camera == null) _camera = FindObjectOfType<Camera>();
@@ -1181,7 +1182,7 @@ public class SandboxSceneController : MonoBehaviour {
             Transform planetDistanceRow = FindDeep(_planetParameterPanel.transform,
                 "AutoParameter_Distance");
             _planetDistanceUnit = AttachUnit(planetDistanceRow, "Unit_Switch",
-                new[] { "m", "km", "AU", "ly" }, RefreshPlanetParameterFields);
+                new[] { "m", "km", "AU", "ly", "Mpc" }, RefreshPlanetParameterFields);
             _planetDistanceValue = FindText(planetDistanceRow, "Text_Parameter");
 
             // General 页的“速度”行：和恒星 General 页一致，显示当前速度并支持切换速度单位。
@@ -1204,7 +1205,7 @@ public class SandboxSceneController : MonoBehaviour {
         // 距离行是复制“速度”行做出来的，所以物体名还是 AutoParameter_Velocity (1)。
         _generalDistanceValue = StarRowText(_generalPanel, "AutoParameter_Velocity (1)");
         SetRowUnit(_generalPanel, "AutoParameter_Velocity (1)", "km", "length",
-            new[] { "km", "AU", "ly" });
+            new[] { "km", "AU", "ly", "Mpc" });
         _mechCentralObject = StarRowText(_mechanicsPanel, "AutoParameter_Centural_Object");
         _mechForce = StarRowText(_mechanicsPanel, "AutoParameter_GeneralForceReceived");
         SetRowUnit(_mechanicsPanel, "AutoParameter_GeneralForceReceived", "N", "force");
@@ -1986,7 +1987,8 @@ public class SandboxSceneController : MonoBehaviour {
 
         if (_followGuideText == null) return;
 
-        double meters = Vector3.Distance(previewPosition, followed.position) *
+        double meters = SandboxWorldScale.ToVirtual(
+                            Vector3.Distance(previewPosition, followed.position)) *
                         CelestialScale.KmPerUnit * 1000.0;
         _followGuideText.text = FormatDistanceAuto(meters);
 
@@ -2013,7 +2015,7 @@ public class SandboxSceneController : MonoBehaviour {
     /// <summary>距离文字用自动单位（没有按钮，用户改不了）。</summary>
     private static string FormatDistanceAuto(double meters) {
         SandboxUnitDefinition def = SandboxUnits.AutoDefinition("length", meters,
-            new[] { "m", "km", "AU", "ly" });
+            new[] { "m", "km", "AU", "ly", "Mpc" });
         if (def == null) return FormatValue(meters) + " m";
         return FormatValue(SandboxUnits.FromBase(meters, def)) + " " + def.DisplaySymbol;
     }
@@ -2596,7 +2598,17 @@ public class SandboxSceneController : MonoBehaviour {
                 ? StarLabelColor(label.star)
                 : Color.white;
 
-            Vector3 screen = _camera.WorldToScreenPoint(label.body.position);
+            // 先检查相机深度范围：远裁剪面外的天体不再交给 WorldToScreenPoint，
+            // 避免超远距离缩放时 Unity 反复刷 "Screen position out of view frustum"。
+            Vector3 bodyPosition = label.body.position;
+            float labelDepth = Vector3.Dot(
+                bodyPosition - _camera.transform.position, _camera.transform.forward);
+            if (labelDepth <= _camera.nearClipPlane || labelDepth >= _camera.farClipPlane) {
+                label.text.gameObject.SetActive(false);
+                continue;
+            }
+
+            Vector3 screen = _camera.WorldToScreenPoint(bodyPosition);
             if (screen.z <= 0f) {
                 label.text.gameObject.SetActive(false);
                 continue;
@@ -2612,9 +2624,8 @@ public class SandboxSceneController : MonoBehaviour {
                 }
                 radiusPixels = Mathf.Max(lightPoint.DotPixelSize * 0.5f, 2f);
             } else {
-                double visualDiameter = label.star != null
-                    ? label.star.VisualDiameter
-                    : label.planet != null ? label.planet.VisualDiameter : 1.0;
+                // 投影在渲染空间里做：直接用已经乘过世界缩放的 localScale。
+                double visualDiameter = label.body.localScale.x;
                 float distance = Vector3.Distance(_camera.transform.position, label.body.position);
                 float diameterPixels = StarLightPoint.ProjectedDiameterPixels(
                     visualDiameter, distance, _camera.fieldOfView, Screen.height);
@@ -3230,8 +3241,9 @@ public class SandboxSceneController : MonoBehaviour {
         if (_preview == null) return;
 
         float diameter = (float)snapshot.VisualDiameter;
+        float renderDiameter = (float)(diameter * SandboxWorldScale.Scale);
         _placementPivot.transform.position = _templatePosition;
-        _placementPivot.transform.localScale = Vector3.one * diameter;
+        _placementPivot.transform.localScale = Vector3.one * renderDiameter;
 
         if (_orbitCamera != null) {
             if (_stars.Count == 0 && _planets.Count == 0) {
@@ -3244,7 +3256,7 @@ public class SandboxSceneController : MonoBehaviour {
             }
         }
 
-        _preview.transform.localScale = Vector3.one * diameter;
+        _preview.transform.localScale = Vector3.one * renderDiameter;
         _preview.SetActive(true);
         UpdatePlacementPreview();
     }
@@ -3267,8 +3279,9 @@ public class SandboxSceneController : MonoBehaviour {
         if (_preview == null) return;
 
         float diameter = (float)snapshot.visualDiameter;
+        float renderDiameter = (float)(diameter * SandboxWorldScale.Scale);
         _placementPivot.transform.position = _templatePosition;
-        _placementPivot.transform.localScale = Vector3.one * diameter;
+        _placementPivot.transform.localScale = Vector3.one * renderDiameter;
         if (_orbitCamera != null) {
             if (_stars.Count == 0 && _planets.Count == 0) {
                 // 空场景放第一个天体：无条件把相机拉到原点外 5 倍直径。
@@ -3279,7 +3292,7 @@ public class SandboxSceneController : MonoBehaviour {
             }
         }
 
-        _preview.transform.localScale = Vector3.one * diameter;
+        _preview.transform.localScale = Vector3.one * renderDiameter;
         _preview.SetActive(true);
         UpdatePlacementPreview();
     }
@@ -3297,6 +3310,7 @@ public class SandboxSceneController : MonoBehaviour {
 
     private void UpdatePlacementPreview() {
         bool hasPlacement = _placementEntry != null || _placementPlanetData != null;
+        if (hasPlacement) UpdatePlacementVisualScale();
         if (!hasPlacement || _preview == null) {
             if (_preview != null) _preview.SetActive(false);
             HideFollowGuide();
@@ -3321,6 +3335,21 @@ public class SandboxSceneController : MonoBehaviour {
         UpdateFollowGuide(point);
     }
 
+    private void UpdatePlacementVisualScale() {
+        double realDiameter = 0.0;
+        if (_placementSnapshot != null) realDiameter = _placementSnapshot.VisualDiameter;
+        else if (_placementPlanetSnapshot != null) realDiameter = _placementPlanetSnapshot.visualDiameter;
+        if (realDiameter <= 0.0) return;
+
+        float renderDiameter = (float)(realDiameter * SandboxWorldScale.Scale);
+        if (_placementPivot != null) {
+            _placementPivot.transform.localScale = Vector3.one * renderDiameter;
+        }
+        if (_preview != null) {
+            _preview.transform.localScale = Vector3.one * renderDiameter;
+        }
+    }
+
     /// <summary>
     /// 创建位置：发射模式下从相机出发、沿视线方向；其它模式仍然落在网格平面上。
     /// </summary>
@@ -3332,10 +3361,15 @@ public class SandboxSceneController : MonoBehaviour {
         // 出生点：相机位置沿视线方向 + 1 倍被选中天体直径。
         double diameter = 0.0;
         if (_placementSnapshot != null) diameter = _placementSnapshot.VisualDiameter;
-        else if (_placementPlanetSnapshot != null) diameter = _placementPlanetSnapshot.VisualDiameter;
-        if (diameter <= 0.0 && _preview != null) diameter = _preview.transform.localScale.x;
+        else if (_placementPlanetSnapshot != null) diameter = _placementPlanetSnapshot.visualDiameter;
+        if (diameter <= 0.0 && _preview != null &&
+            SandboxWorldScale.Scale > 1e-30) {
+            diameter = _preview.transform.localScale.x / SandboxWorldScale.Scale;
+        }
 
-        float distance = diameter > 0.0001 ? (float)diameter : 0.001f;
+        float distance = diameter > 0.0001
+            ? (float)(diameter * SandboxWorldScale.Scale)
+            : 0.001f;
         Vector3 direction = MouseRay().direction;
         return _camera.transform.position + direction * distance;
     }
@@ -3345,19 +3379,25 @@ public class SandboxSceneController : MonoBehaviour {
         if (_camera == null) return false;
 
         Ray ray = MouseRay();
-        if (_placementPlane.Raycast(ray, out float enter) && enter > 0f) {
+
+        // 参照距离：相机到当前跟随目标（沙盘里渲染距离固定 30）。
+        float reference = 50f;
+        if (_orbitCamera != null && _orbitCamera.target != null) {
+            reference = Mathf.Max(
+                Vector3.Distance(_camera.transform.position, _orbitCamera.target.position), 0.01f);
+        }
+
+        // 拉远后视线几乎平行于放置平面，射线会和平面交在非常远的地方
+        // （单个场景甚至到 1e18 单位），放出来的天体会跑到屏幕外。
+        // 这里限制在“约 20 倍相机距离”以内；超出的就退化成沿视线、
+        // 和当前观察距离差不多的位置，保证天体落在当前视野附近。
+        if (_placementPlane.Raycast(ray, out float enter) && enter > 0f &&
+            enter <= Mathf.Max(reference * 20f, 1f)) {
             point = ray.GetPoint(enter);
             return true;
         }
 
-        // 拉远后视线几乎平行于放置平面，射线打不到平面：退化成
-        // “沿鼠标方向、和当前跟随目标差不多的距离”，保证预览球与引导线一直在。
-        float fallback = 50f;
-        if (_orbitCamera != null && _orbitCamera.target != null) {
-            fallback = Mathf.Max(
-                Vector3.Distance(_camera.transform.position, _orbitCamera.target.position), 0.01f);
-        }
-        point = ray.origin + ray.direction * fallback;
+        point = ray.origin + ray.direction * reference;
         return true;
     }
 
@@ -4444,7 +4484,8 @@ public class SandboxSceneController : MonoBehaviour {
     /// <summary>世界坐标里两个点之间的距离（米），用 1 单位 = KmPerUnit 换算。</summary>
     private double CameraDistanceMeters(Vector3 worldPosition) {
         if (_camera == null) return 0.0;
-        double units = Vector3.Distance(_camera.transform.position, worldPosition);
+        double units = SandboxWorldScale.ToVirtual(
+            Vector3.Distance(_camera.transform.position, worldPosition));
         return units * CelestialScale.KmPerUnit * 1000.0;
     }
 
@@ -6327,7 +6368,7 @@ public class SandboxSceneController : MonoBehaviour {
             }
         }
         // 矮行星 / 小行星：轨道参数用真实值，同样从远日点出发。
-        // 谷神星、冥王星、亡神星、创神星、阅神星、赛德娜、鸟神星、共工星
+        // 谷神星、冥王星、亡神星、创神星、阋神星、赛德娜、鸟神星、共工星
         double[] da = { 2.7678, 39.4821, 39.174, 43.694, 67.864, 506.0, 45.430, 67.38 };
         double[] de = { 0.0785, 0.24883, 0.2270, 0.0397, 0.4417, 0.8496, 0.159, 0.503 };
         double[] di = { 10.587, 17.140, 20.593, 7.990, 44.04, 11.93, 29.0, 30.70 };

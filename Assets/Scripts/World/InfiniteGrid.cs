@@ -29,20 +29,30 @@ public class InfiniteGrid : MonoBehaviour {
     [Tooltip("density 大于此值 → 格子太稀，淡出")]
     public float fadeOutMultiplier = 50f;
 
+    [Header("渲染范围（跟随相机）")]
+    [Tooltip("网格只渲染“相机到原点距离 × 此倍数”以内的区域，圆盘外不绘制。")]
+    public float renderRadiusFactor = 5f;
+
+    [Tooltip("圆盘外缘柔和过渡的宽度（占渲染半径的比例），越大淡出越自然。")]
+    [Range(0.02f, 0.9f)]
+    public float edgeFadeRatio = 0.3f;
+
     [Header("颜色")]
     public Color gridColor = new(0.2f, 0.5f, 1f, 0.35f);
     public Color majorGridColor = new(0.5f, 0.8f, 1f, 0.9f);
 
     [Header("Shader")]
-    [Tooltip("可指定抗锯齿网格 Shader；留空则使用内置的顶点色 Unlit Shader")]
+    [Tooltip("留空则自动使用 Resources/Shaders/GridLine（UPB/GridLine）")]
     public Shader gridShader;
 
-    private static readonly int GridLineColor = Shader.PropertyToID("_GridLineColor");
-    private static readonly int GridAxisColor = Shader.PropertyToID("_GridAxisColor");
     private Camera _mainCamera;
     private LayerData[] _layers;
     private bool _isVisible;
-    private bool _useAntialiasedGrid;
+    private float _cameraDistance = 1f;
+
+    private static readonly int ClipCenterId = Shader.PropertyToID("_GridClipCenter");
+    private static readonly int ClipRadiusId = Shader.PropertyToID("_GridClipRadius");
+    private static readonly int ClipFadeId = Shader.PropertyToID("_GridClipFade");
 
     private class LayerData {
         public GameObject go;
@@ -53,14 +63,19 @@ public class InfiniteGrid : MonoBehaviour {
     }
 
     void Start() {
-        kmPerUnit = CelestialScale.KmPerUnit;
+        kmPerUnit = CelestialScale.KmPerUnit / SandboxWorldScale.Scale;
         _mainCamera = Camera.main;
 
         if (gridShader == null) {
+            gridShader = Resources.Load<Shader>("Shaders/GridLine");
+        }
+        if (gridShader == null) {
+            gridShader = Shader.Find("UPB/GridLine");
+        }
+        if (gridShader == null) {
+            Debug.LogWarning("InfiniteGrid: 找不到 UPB/GridLine，回退到 Sprites/Default（网格不会被裁剪）");
             gridShader = Shader.Find("Sprites/Default");
         }
-        _useAntialiasedGrid = gridShader != null &&
-            gridShader.FindPropertyIndex("_GridLineColor") >= 0 && gridShader.FindPropertyIndex("_GridAxisColor") >= 0;
 
         _layers = new LayerData[layerCount];
         for (int i = 0; i < layerCount; i++) {
@@ -68,6 +83,7 @@ public class InfiniteGrid : MonoBehaviour {
         }
 
         SetVisible(startVisible);
+        UpdateClip();
     }
 
     LayerData CreateLayer(int index) {
@@ -87,16 +103,13 @@ public class InfiniteGrid : MonoBehaviour {
 
         Material mat = new Material(gridShader);
         mat.color = Color.white;
-        if (_useAntialiasedGrid) {
-            mat.SetVector(GridLineColor, gridColor);
-            mat.SetVector(GridAxisColor, majorGridColor);
-        }
-        mr.sharedMaterial = mat;
+        mr.material = mat;
         mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         mr.receiveShadows = false;
 
-        Mesh mesh = _useAntialiasedGrid ? BuildGridPlane(gridExtent) : BuildGridMesh(1.0, gridExtent);
-        mf.sharedMesh = mesh;
+        // 构建一个步长为 1 的网格
+        Mesh mesh = BuildGridMesh(1.0, gridExtent);
+        mf.mesh = mesh;
 
         return new LayerData {
             go = go,
@@ -104,20 +117,6 @@ public class InfiniteGrid : MonoBehaviour {
             renderer = mr,
             material = mat,
             relativeMultiplier = System.Math.Pow(layerMultiplier, index)
-        };
-    }
-
-    static Mesh BuildGridPlane(int extent) {
-        float e = Mathf.Max(1, extent);
-        return new Mesh {
-            name = "GridPlane_Unit",
-            vertices = new[] {
-                new Vector3(-e, 0, -e), new Vector3(-e, 0, e),
-                new Vector3(e, 0, e), new Vector3(e, 0, -e)
-            },
-            // UV 以格子为单位，生成的线条和原有 Mesh 网格对齐。
-            uv = new[] { new Vector2(-e, -e), new Vector2(-e, e), new Vector2(e, e), new Vector2(e, -e) },
-            triangles = new[] { 0, 1, 2, 0, 2, 3 }
         };
     }
 
@@ -181,9 +180,20 @@ public class InfiniteGrid : MonoBehaviour {
 
         if (!_isVisible) return;
 
-        // distance 是相机到网格平面 (y=0) 的垂直距离，单位：Unity 单位
-        float distance = Mathf.Abs(_mainCamera.transform.position.y);
-        if (distance < 1e-6f) distance = 1e-6f;
+        UpdateClip();
+
+        // 世界缩放后，1 个渲染单位对应的 km 会变化；网格步长仍按真实 km 取整。
+        kmPerUnit = CelestialScale.KmPerUnit / SandboxWorldScale.Scale;
+
+        // 网格尺度参考距离：默认用相机到平面的高度，保持原来的密度手感；
+        // 贴地远飞（高度远小于相机到原点的距离）时自动放大，保证网格 mesh
+        // 至少能铺满渲染半径的圆盘，不会在半路露出方形硬边。
+        float height = Mathf.Abs(_mainCamera.transform.position.y);
+        if (height < 1e-6f) height = 1e-6f;
+
+        float coverageDistance = 10f * Mathf.Max(0.01f, renderRadiusFactor) *
+                                 _cameraDistance / Mathf.Max(1, gridExtent);
+        float distance = Mathf.Max(height, coverageDistance);
 
         // 换算成 km
         double distanceKm = distance * kmPerUnit;
@@ -210,7 +220,6 @@ public class InfiniteGrid : MonoBehaviour {
         float logIn = Mathf.Log10(fadeInMultiplier);
         float logOut = Mathf.Log10(fadeOutMultiplier);
         float logMid = (logIn + logOut) * 0.5f;
-        float logHalf = (logOut - logIn) * 0.5f;
 
         foreach (var layer in _layers) {
             if (layer == null || layer.material == null) continue;
@@ -220,14 +229,39 @@ public class InfiniteGrid : MonoBehaviour {
 
             float logDensity = Mathf.Log10(Mathf.Max((float)density, 1e-6f));
 
-            // 基础透明度计算
-            float alpha = Mathf.Clamp01(1f - Mathf.Abs(logDensity - logMid) / logHalf);
+            // 基础透明度：在对数尺度上用 smoothstep 过渡，避免阈值处突然出现/消失。
+            float tIn = Mathf.InverseLerp(logIn, logMid, logDensity);
+            float tOut = Mathf.InverseLerp(logMid, logOut, logDensity);
+            float alpha = Mathf.SmoothStep(0f, 1f, tIn) *
+                          (1f - Mathf.SmoothStep(0f, 1f, tOut));
 
             Color c = gridColor;
             c.a *= alpha;
             layer.material.color = c;
-            if (_useAntialiasedGrid) layer.renderer.enabled = alpha > 0f;
         }
+    }
+
+    /// <summary>
+    /// 把“相机到原点距离 × renderRadiusFactor”的圆盘范围写入 Shader 全局参数。
+    /// 圆盘外由 Shader 直接丢弃，圆盘边缘按 edgeFadeRatio 平滑淡出。
+    /// </summary>
+    void UpdateClip() {
+        if (_mainCamera == null) {
+            _mainCamera = Camera.main;
+            if (_mainCamera == null) return;
+        }
+
+        Vector3 origin = transform.position;
+        float camDistance = Vector3.Distance(_mainCamera.transform.position, origin);
+        if (camDistance < 1e-5f) camDistance = 1e-5f;
+        _cameraDistance = camDistance;
+
+        float radius = camDistance * Mathf.Max(0.01f, renderRadiusFactor);
+        float fade = radius * Mathf.Clamp(edgeFadeRatio, 0.02f, 0.9f);
+
+        Shader.SetGlobalVector(ClipCenterId, origin);
+        Shader.SetGlobalFloat(ClipRadiusId, radius);
+        Shader.SetGlobalFloat(ClipFadeId, fade);
     }
 
     void OnDestroy() {

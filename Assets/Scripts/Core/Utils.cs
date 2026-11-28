@@ -40,7 +40,8 @@ public static class FloatingText {
         rect.sizeDelta = new Vector2(300, 100);
 
         _textMesh = go.AddComponent<TextMeshProUGUI>();
-        _textMesh.font = Resources.Load<TMP_FontAsset>("Fonts/KosefontP-JP SDF 1")
+        _textMesh.font = Resources.Load<TMP_FontAsset>("Fonts/SIYUANHEITI SDF")
+            ?? Resources.Load<TMP_FontAsset>("Fonts/KosefontP-JP SDF 1")
             ?? Resources.Load<TMP_FontAsset>("Fonts/FRCFONT SDF");
         _textMesh.autoSizeTextContainer = true;
         _textMesh.fontSize = 64;

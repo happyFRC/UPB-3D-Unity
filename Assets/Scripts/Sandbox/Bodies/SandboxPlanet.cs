@@ -39,6 +39,7 @@ public class SandboxPlanet : MonoBehaviour {
     public SandboxPlanetSnapshot snapshot;
 
     private double _rotationDegrees;
+    private double _appliedWorldScale = -1.0;
 
     public Renderer planetRenderer;
     public Material planetMaterial;
@@ -71,6 +72,22 @@ public class SandboxPlanet : MonoBehaviour {
 
     public void ApplyRenderPosition() {
         transform.position = SandboxFloatingOrigin.ToRender(logicalX, logicalY, logicalZ);
+        ApplyRenderScale();
+    }
+
+    private void ApplyRenderScale() {
+        _appliedWorldScale = SandboxWorldScale.Scale;
+        float diameter = (float)(VisualDiameter * _appliedWorldScale);
+        if (diameter < 1e-20f) diameter = 1e-20f;
+        transform.localScale = new Vector3(diameter, diameter, diameter);
+        ApplyBoxScale();
+    }
+
+    private void LateUpdate() {
+        // 世界缩放变化时同步渲染尺寸；位置由浮动原点负责。
+        if (System.Math.Abs(_appliedWorldScale - SandboxWorldScale.Scale) > 0.0) {
+            ApplyRenderPosition();
+        }
     }
 
     private void Update() {
@@ -151,8 +168,7 @@ public class SandboxPlanet : MonoBehaviour {
         UpdateWaterTemperaturePoints();
         trailColor = snapshot.trailColor;
 
-        float diameter = (float)snapshot.visualDiameter;
-        transform.localScale = new Vector3(diameter, diameter, diameter);
+        ApplyRenderScale();
         ApplyAxialTilt();
 
         // 彩蛋长方体：不按球体渲染，跳过地表/大气/海平面那套。
@@ -344,7 +360,8 @@ public class SandboxPlanet : MonoBehaviour {
 
         Shader.SetGlobalTexture("_SandboxStarData", _starDataTexture);
         Shader.SetGlobalFloat("_SandboxStarCount", count);
-        Shader.SetGlobalFloat("_SandboxUnitsPerAu", (float)CelestialScale.UnitsPerAu);
+        Shader.SetGlobalFloat("_SandboxUnitsPerAu",
+            (float)SandboxWorldScale.UnitsPerAuRender);
         // 照明淡出阈值只在 SandboxStar 里维护一份，这里同步给 UPB/SandboxPlanet。
         Shader.SetGlobalFloat("_SandboxLightFadeStartAu",
             (float)SandboxStar.IlluminationFadeStartAu);
@@ -466,12 +483,13 @@ public class SandboxPlanet : MonoBehaviour {
     private void ApplyBoxScale() {
         if (_boxVisual == null || snapshot == null) return;
 
-        double parentScale = System.Math.Max(transform.localScale.x, 1e-6);
+        // 盒子的本地缩放是相对父星球的：用真实尺寸相除，不能拿已经乘过世界缩放的 localScale。
+        double parentScale = System.Math.Max(snapshot.visualDiameter, 1e-9);
         Vector3 worldUnits = new(
-            (float)(snapshot.boxXKm / CelestialScale.KmPerUnit),
-            (float)(snapshot.boxYKm / CelestialScale.KmPerUnit),
-            (float)(snapshot.boxZKm / CelestialScale.KmPerUnit));
-        _boxVisual.transform.localScale = worldUnits / (float)parentScale;
+            (float)(snapshot.boxXKm / CelestialScale.KmPerUnit / parentScale),
+            (float)(snapshot.boxYKm / CelestialScale.KmPerUnit / parentScale),
+            (float)(snapshot.boxZKm / CelestialScale.KmPerUnit / parentScale));
+        _boxVisual.transform.localScale = worldUnits;
     }
 
     private static Texture2D SafeTexture(string path) {

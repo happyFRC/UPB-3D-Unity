@@ -10,6 +10,10 @@ public class SandboxFragment : MonoBehaviour {
     public double logicalY;
     public double logicalZ;
 
+    /// <summary>真实基准单位下的直径（未乘世界缩放）。</summary>
+    public double visualDiameter = 1.0;
+    private double _appliedWorldScale = -1.0;
+
     public void SetLogicalPosition(double x, double y, double z) {
         logicalX = x;
         logicalY = y;
@@ -19,6 +23,16 @@ public class SandboxFragment : MonoBehaviour {
 
     public void ApplyRenderPosition() {
         transform.position = SandboxFloatingOrigin.ToRender(logicalX, logicalY, logicalZ);
+        _appliedWorldScale = SandboxWorldScale.Scale;
+        float diameter = (float)(visualDiameter * _appliedWorldScale);
+        if (diameter < 1e-20f) diameter = 1e-20f;
+        transform.localScale = new Vector3(diameter, diameter, diameter);
+    }
+
+    private void LateUpdate() {
+        if (System.Math.Abs(_appliedWorldScale - SandboxWorldScale.Scale) > 0.0) {
+            ApplyRenderPosition();
+        }
     }
 
     public void ApplyThermalState(double temperatureK) {

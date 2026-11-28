@@ -18,6 +18,7 @@ public class SandboxStar : MonoBehaviour {
     // 0 = 默认渲染；1 = 黑体光球（永远不切换星点）
     public int renderMode;
     private Material _glowMaterial;
+    private double _appliedWorldScale = -1.0;
 
     /// <summary>这颗恒星作为行星照明的点光源（参数统一由行星 shader 的数组读取）。</summary>
     public Light planetLight;
@@ -40,6 +41,21 @@ public class SandboxStar : MonoBehaviour {
 
     public void ApplyRenderPosition() {
         transform.position = SandboxFloatingOrigin.ToRender(logicalX, logicalY, logicalZ);
+        ApplyRenderScale();
+    }
+
+    private void ApplyRenderScale() {
+        _appliedWorldScale = SandboxWorldScale.Scale;
+        float diameter = (float)(VisualDiameter * _appliedWorldScale);
+        if (diameter < 1e-20f) diameter = 1e-20f;
+        transform.localScale = new Vector3(diameter, diameter, diameter);
+    }
+
+    private void LateUpdate() {
+        // 世界缩放变化时（相机缩放）同步渲染尺寸；位置由浮动原点负责。
+        if (System.Math.Abs(_appliedWorldScale - SandboxWorldScale.Scale) > 0.0) {
+            ApplyRenderPosition();
+        }
     }
 
     public void Initialize(
@@ -213,8 +229,7 @@ public class SandboxStar : MonoBehaviour {
             ? starSnapshot.rotationPeriodDays
             : 25.38;
 
-        float diameter = (float)starSnapshot.VisualDiameter;
-        transform.localScale = new Vector3(diameter, diameter, diameter);
+        ApplyRenderScale();
 
         if (lightPoint != null) {
             lightPoint.SetStar(starSnapshot.luminosityLsun, starSnapshot.temperatureK);

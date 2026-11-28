@@ -9,6 +9,8 @@ using UnityEngine.UI;
 /// 2. 光点的核心圆盘直径取切换瞬间恒星在屏幕上的投影像素数，之后不再随距离变小；
 /// 3. 视星等 &lt; -17 时保持切换瞬间的亮度和大小；
 /// 4. 视星等 -17 ~ +6 之间逐渐变小、变暗，到 +6 时完全看不见；
+///    沙盘模式（3D billboard）例外：至少保留 2.5 像素、0.18 透明度的标记点，
+///    这样缩放到百万光年外也不会整个系统消失。
 /// 5. 光点颜色直接复用 <see cref="Spectrum.GetBlackbodyColor"/> 的黑体颜色，
 ///    核心稍微增白，外圈是同色光晕。
 ///
@@ -29,6 +31,12 @@ public class StarLightPoint : MonoBehaviour {
     private const double DefaultTemperature = 5773.15;
     private const float MinDotPixels = 0.01f;
     private const float MaxExtendedZoom = 1e13f;
+
+    /// <summary>沙盘 3D 星点的最小屏幕直径，避免亚像素星点随相机移动闪烁。</summary>
+    public const float SandboxMinDotPixels = 2.5f;
+
+    /// <summary>沙盘 3D 星点的最低透明度；拉到百万光年外仍保留一个可辨认的标记点。</summary>
+    public const float SandboxMinDotAlpha = 0.18f;
 
     [Tooltip("必要时自动放宽相机的最大缩放距离，保证能一直缩放到 +6 等消失。")]
     public bool extendCameraMaxZoom = true;
@@ -218,17 +226,23 @@ public class StarLightPoint : MonoBehaviour {
     }
 
     private void RefreshDot(double distance) {
-        double magnitude = ApparentMagnitudeAt(_luminositySolar, distance);
+        // distance 是渲染单位；视星等要用真实基准单位。
+        double realDistance = SandboxWorldScale.ToVirtual(distance);
+        double magnitude = ApparentMagnitudeAt(_luminositySolar, realDistance);
         ApparentMagnitude = magnitude;
 
         double fade = FadeFactor(magnitude);
         if (fade <= 0.0001) {
-            HideDot();
-            return;
+            if (!_worldSpace) {
+                HideDot();
+                return;
+            }
+            // 沙盘里即使视星等已经很暗，也保留一个最小星点，缩放时不会“突然消失”。
+            fade = 0.0001;
         }
 
         float pixels = _switchPixelSize * (float)fade;
-        if (pixels < MinDotPixels) {
+        if (!_worldSpace && pixels < MinDotPixels) {
             HideDot();
             return;
         }
@@ -237,6 +251,8 @@ public class StarLightPoint : MonoBehaviour {
         color.a = (float)fade;
 
         if (_worldSpace) {
+            color.a = Mathf.Max(color.a, SandboxMinDotAlpha);
+            pixels = Mathf.Max(pixels, SandboxMinDotPixels);
             RefreshBillboard(distance, pixels, color);
             return;
         }
